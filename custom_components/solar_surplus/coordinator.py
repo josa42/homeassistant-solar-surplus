@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.debounce import Debouncer
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -70,6 +71,9 @@ from .store import SolarSurplusStore
 _LOGGER = logging.getLogger(__name__)
 
 type SolarSurplusConfigEntry = ConfigEntry[SolarSurplusCoordinator]
+
+#: Sent after every run, for the panel's subscriptions.
+SIGNAL_UPDATE = f"{DOMAIN}_update"
 
 
 @dataclass(slots=True)
@@ -214,6 +218,11 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         self._unsubscribe.append(
             self.store.async_add_listener(lambda: _on_change(None))
         )
+        self._unsubscribe.append(
+            self.async_add_listener(
+                lambda: async_dispatcher_send(self.hass, SIGNAL_UPDATE)
+            )
+        )
 
     async def async_shutdown(self) -> None:
         for unsubscribe in self._unsubscribe:
@@ -230,6 +239,11 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
             return
         self.control_enabled = enabled
         self.hass.async_create_task(self.async_request_refresh(), eager_start=True)
+
+    async def async_set_control_now(self, enabled: bool) -> None:
+        """Like `async_set_control`, but run at once."""
+        self.control_enabled = enabled
+        await self.async_refresh()
 
     ############################################################################
     # Running

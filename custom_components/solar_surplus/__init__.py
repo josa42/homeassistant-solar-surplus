@@ -5,7 +5,9 @@ from __future__ import annotations
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 
+from . import websocket_api
 from .const import DOMAIN
 from .coordinator import SolarSurplusConfigEntry, SolarSurplusCoordinator
 from .store import SolarSurplusStore
@@ -13,6 +15,12 @@ from .store import SolarSurplusStore
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS: list[Platform] = [Platform.SELECT, Platform.SENSOR, Platform.SWITCH]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the websocket API. Once per session."""
+    websocket_api.async_register(hass)
+    return True
 
 
 async def async_setup_entry(
