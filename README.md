@@ -137,6 +137,26 @@ These are set under **Configure** → **Energy signal**.
 
 <br><br>
 
+## Panel
+
+The integration adds **Solar Surplus** to the sidebar. It shows:
+
+- the surplus (smoothed, and what it is right now), the grid, the battery, what
+  is handed out and what is left, and the energy signal
+- the forecast for the next hours as bars, against the line of base load and
+  reserve that a forecast hour has to clear before it counts as surplus
+- every consumer in priority order, with what it is doing, why, and the figures
+  behind it: the surplus it saw at its place, until when a delay or minimum time
+  runs, and for a deferrable consumer by when it starts at the latest and by
+  when it is done
+- the energy signal at its place in the order
+
+Admins can change the order by dragging a row or with its arrows, put a hand on
+a consumer (Auto, On, Off), and turn control on or off. Everyone else sees the
+same, read-only.
+
+<br><br>
+
 ## How it decides
 
 Every 10 seconds, and whenever a meter or a consumer changes, the integration

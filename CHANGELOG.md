@@ -18,3 +18,6 @@
   a switch to only show what would be done.
 - **Energy signal**, an enum sensor after SG Ready (`blocked`, `normal`,
   `recommended`, `forced`) for other integrations to follow.
+- **Panel** in the sidebar: the surplus, the forecast, and every consumer in
+  priority order with what it does and why. The order is changed by dragging,
+  and each consumer can be put on Auto, On or Off.
