@@ -1,0 +1,86 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+logger:
+  default: info
+  logs:
+    # Every tick logs the decision and the reason behind it.
+    custom_components.solar_surplus: debug
+
+# --- Development fixtures ---------------------------------------------------
+# A fake house, so the integration can be exercised without real hardware.
+# Move "Dev grid power" below zero to export and watch consumers switch on.
+
+input_number:
+  dev_grid_power:
+    name: Dev grid power
+    min: -8000
+    max: 8000
+    step: 50
+    initial: 0
+    unit_of_measurement: W
+  dev_battery_power:
+    name: Dev battery power
+    min: -5000
+    max: 5000
+    step: 50
+    initial: 0
+    unit_of_measurement: W
+  dev_battery_soc:
+    name: Dev battery SoC
+    min: 0
+    max: 100
+    step: 1
+    initial: 80
+    unit_of_measurement: "%"
+  dev_wallbox_current:
+    name: Dev variable consumer
+    min: 0
+    max: 3000
+    step: 100
+    initial: 0
+    unit_of_measurement: W
+
+input_boolean:
+  dev_heating_rod:
+    name: Dev heating rod
+  dev_sg_ready_a:
+    name: Dev SG Ready A
+  dev_sg_ready_b:
+    name: Dev SG Ready B
+  dev_washer_plug:
+    name: Dev washer plug
+  dev_washer_ready:
+    name: Dev washer ready
+
+input_datetime:
+  dev_washer_deadline:
+    name: Dev washer deadline
+    has_date: true
+    has_time: true
+
+template:
+  - sensor:
+      - name: Dev grid
+        unique_id: dev_grid
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: "{{ states('input_number.dev_grid_power') }}"
+      - name: Dev battery
+        unique_id: dev_battery
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: "{{ states('input_number.dev_battery_power') }}"
+      - name: Dev battery SoC
+        unique_id: dev_battery_soc
+        unit_of_measurement: "%"
+        device_class: battery
+        state_class: measurement
+        state: "{{ states('input_number.dev_battery_soc') }}"

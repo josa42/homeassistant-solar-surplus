@@ -1,0 +1,133 @@
+.PHONY: help venv install test lint lint-fix clean dev-up dev-down dev-logs dev-restart release
+
+# Home Assistant 2026.9 needs Python 3.14; a newer default python3 cannot resolve it.
+PYTHON := $(shell command -v python3.14 || command -v python3 || command -v python)
+VENV := venv
+VENV_BIN := $(VENV)/bin
+VENV_PYTHON := $(VENV_BIN)/python
+VENV_PIP := $(VENV_BIN)/pip
+
+help:
+	@echo "Available commands:"
+	@echo ""
+	@echo "Development:"
+	@echo "  make dev-up       - Start local Home Assistant for testing (pulls the latest image)"
+	@echo "  make dev-down     - Stop local Home Assistant"
+	@echo "  make dev-logs     - Follow Home Assistant logs"
+	@echo "  make dev-restart  - Restart after code changes"
+	@echo ""
+	@echo "Testing:"
+	@echo "  make venv     - Create virtual environment"
+	@echo "  make install  - Install test dependencies (creates venv if needed)"
+	@echo "  make test     - Run tests"
+	@echo "  make lint     - Run linter"
+	@echo "  make lint-fix - Run linter and apply fixes"
+	@echo "  make clean    - Clean cache files"
+	@echo ""
+	@echo "Release:"
+	@echo "  make release  - Start the release workflow: minor if a feat commit"
+	@echo "                  landed since the last release, else patch."
+	@echo "                  Override with VERSION=1.2.3, major, minor or patch"
+
+venv:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Creating virtual environment..."; \
+		$(PYTHON) -m venv $(VENV); \
+		echo "Virtual environment created at ./$(VENV)"; \
+		echo "To activate: source $(VENV_BIN)/activate"; \
+	else \
+		echo "Virtual environment already exists"; \
+	fi
+
+install: venv
+	@echo "Installing dependencies in virtual environment..."
+	$(VENV_PIP) install --upgrade pip
+	$(VENV_PIP) install -r requirements_test.txt
+	$(VENV_PIP) install ruff
+	@echo "Done! Activate with: source $(VENV_BIN)/activate"
+
+test:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Virtual environment not found. Run 'make install' first."; \
+		exit 1; \
+	fi
+	$(VENV_PYTHON) -m pytest tests/ -v
+
+lint:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Virtual environment not found. Run 'make install' first."; \
+		exit 1; \
+	fi
+	$(VENV_BIN)/ruff check custom_components/ tests/
+
+lint-fix:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Virtual environment not found. Run 'make install' first."; \
+		exit 1; \
+	fi
+	$(VENV_BIN)/ruff check --fix custom_components/ tests/
+
+clean:
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+	rm -rf $(VENV)
+
+release:
+	@# The workflow releases origin/main, so that is what the bump is read from.
+	@git fetch --quiet --tags origin main
+	@if [ -n "$$(git status --porcelain --untracked-files=no)" ]; then \
+		echo "Uncommitted changes would not be released. Commit and push them first." >&2; \
+		exit 1; \
+	fi
+	@ahead=$$(git rev-list --count origin/main..HEAD); \
+	if [ "$$ahead" -gt 0 ]; then \
+		echo "$$ahead local commit(s) not on origin/main would not be released. Push them first." >&2; \
+		exit 1; \
+	fi
+	@version="$(VERSION)"; \
+	if [ -z "$$version" ]; then \
+		last=$$(git describe --tags --abbrev=0 --match 'v*' origin/main 2>/dev/null); \
+		if [ -z "$$last" ]; then \
+			echo "No release yet, pass the first version: make release VERSION=1.2.3" >&2; \
+			exit 1; \
+		fi; \
+		if git log --format=%s "$$last..origin/main" | grep -qE '^feat(\(.*\))?!?:'; then \
+			version=minor; \
+		else \
+			version=patch; \
+		fi; \
+		echo "Releasing a $$version: commits since $$last decide it"; \
+	fi; \
+	gh workflow run release.yml -f version="$$version"
+	@echo "Release workflow started. Follow it with: gh run watch"
+
+dev-up:
+	@echo "Starting Home Assistant..."
+	@echo "Setting up configuration..."
+	@mkdir -p config
+	@cp -n config.template.yaml config/configuration.yaml 2>/dev/null || true
+	@touch config/automations.yaml config/scripts.yaml config/scenes.yaml config/secrets.yaml 2>/dev/null || true
+	@echo "Access at: http://localhost:8123"
+	@echo "Checking for a newer Home Assistant image..."
+	@# `stable` is a moving tag, and docker keeps serving whatever it cached
+	@# the first time. Without this the container silently stays on an old
+	@# release and the integration fails to import APIs that exist upstream.
+	docker-compose pull
+	docker-compose up -d
+	@echo ""
+	@echo "Waiting for Home Assistant to start..."
+	@sleep 5
+	docker-compose logs -f --tail=50
+
+dev-down:
+	docker-compose down
+
+dev-logs:
+	docker-compose logs -f
+
+dev-restart:
+	@echo "Restarting Home Assistant..."
+	docker-compose restart
+	@sleep 2
+	docker-compose logs -f --tail=50

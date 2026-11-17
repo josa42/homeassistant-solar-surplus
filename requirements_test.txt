@@ -1,0 +1,8 @@
+# Home Assistant 2026.9 requires Python 3.14.2 or newer; keep CI on a version
+# that can resolve a current release rather than silently falling back to an
+# ancient one.
+pytest-homeassistant-custom-component>=0.13.364
+freezegun>=1.5
+# The panel registers through the frontend integration, which does not set up
+# without its package: "No module named 'hass_frontend'".
+home-assistant-frontend>=20260826.0
