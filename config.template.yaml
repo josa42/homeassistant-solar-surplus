@@ -14,14 +14,19 @@ logger:
 
 # --- Development fixtures ---------------------------------------------------
 # A fake house, so the integration can be exercised without real hardware.
-# Move "Dev grid power" below zero to export and watch consumers switch on.
+# "Dev solar excess" is what the house would export with every consumer off.
+# The grid meter follows from it and from what the fake consumers draw, so
+# switching one on shows up on the meter the way it would in a real house.
+# Their draw matches the consumers set up for development: heating rod
+# 2000 W, heat pump 1200 W recommended and 2700 W forced, the wallbox what it
+# is set to, the washer 500 W.
 
 input_number:
-  dev_grid_power:
-    name: Dev grid power
-    min: -8000
-    max: 8000
-    step: 50
+  dev_solar_excess:
+    name: Dev solar excess
+    min: -5000
+    max: 10000
+    step: 100
     initial: 0
     unit_of_measurement: W
   dev_battery_power:
@@ -71,7 +76,15 @@ template:
         unit_of_measurement: W
         device_class: power
         state_class: measurement
-        state: "{{ states('input_number.dev_grid_power') }}"
+        state: >-
+          {% set sg_a = is_state('input_boolean.dev_sg_ready_a', 'on') %}
+          {% set sg_b = is_state('input_boolean.dev_sg_ready_b', 'on') %}
+          {{ (0 - states('input_number.dev_solar_excess') | float(0)
+              + (2000 if is_state('input_boolean.dev_heating_rod', 'on') else 0)
+              + (1200 if sg_b else 0) + (1500 if sg_a and sg_b else 0)
+              + states('input_number.dev_wallbox_current') | float(0)
+              + (500 if is_state('input_boolean.dev_washer_plug', 'on') else 0))
+             | round(0) }}
       - name: Dev battery
         unique_id: dev_battery
         unit_of_measurement: W
