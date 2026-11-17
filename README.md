@@ -81,6 +81,32 @@ All but the deferrable kind have the same four timings:
 | Switch on after | 60 s | Enough surplus has to hold this long before it is switched on. |
 | Switch off after | 120 s | Too little surplus has to hold this long before it is switched off. |
 
+A **variable** consumer's power is the most it may take. *Minimum power* is the
+least it runs with, *Power step* the steps above that, and *Watts per unit*
+converts to the number's own unit: 1 for watts, 230 for amperes on one phase,
+690 on three. A number that cannot go to zero, such as a wallbox's charging
+current, needs its *Enable switch*: it is what turns the consumer off.
+
+An **SG Ready** heat pump's power is what it draws when recommended. *Forced from
+additional* is the surplus beyond that which makes it forced; left empty it is
+never forced. *Lock while drawing from the grid* allows the lock (state 1).
+
+A **deferrable** consumer has its own settings:
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| Ready while | | A `binary_sensor`, `input_boolean` or `switch` that is on while the consumer waits to be started. An `input_boolean` is turned off again once the run is done. |
+| Start with | | A switch is turned on, a script, button or scene is run. |
+| Done by (entity) | | Optional. A `datetime`, `input_datetime`, `time` or timestamp `sensor`. |
+| Done by | 18:00 | The deadline without an entity: the next time of day after it became ready. |
+| Run time | 120 min | How long a run takes. The latest start is the deadline minus this. |
+| Done below / Done after | 5 W / 5 min | With a power sensor, the run is done once it draws less for this long. |
+| Turn off when done | on | Turn a start switch off after the run, so the next start is a fresh one. |
+| Start after | 60 s | Enough surplus has to hold this long before it is started. |
+
+Its power should be what it draws on average while it runs: it starts once that
+much surplus is there.
+
 <br><br>
 
 ## Entities
@@ -173,7 +199,9 @@ runs once through all consumers.
 3. **The consumers are served in priority order.** Each takes the power it needs
    if it fits, and leaves the rest to the ones below it. A consumer that is on
    keeps running until the house draws from the grid; then the one lowest in the
-   order goes first, because everything above it was served before it.
+   order goes first, because everything above it was served before it. A
+   consumer that waits out its delay to switch on already holds its power, so
+   one below it does not take that in the meantime.
 4. **Nothing flaps.** A consumer switches on only once enough surplus has held
    for *Switch on after*, and off once too little has held for *Switch off
    after*. Between switching it keeps its minimum on and off times. A consumer
@@ -214,6 +242,16 @@ remembered.
 
 <br><br>
 
+## Not in this version
+
+The allocation is greedy by priority, not an optimizer. There are no electricity
+prices or tariffs (so the energy signal has no `cheap_tariff` reason yet), no
+electric vehicle charging logic beyond a variable consumer (evcc does that
+better), and consumers are added and changed on the integration's page, not in
+the panel.
+
+<br><br>
+
 ## Development
 
 ```bash
@@ -227,6 +265,17 @@ make dev-down   # stop it
 
 `make dev-up` mounts `custom_components/` into the container, so a
 `make dev-restart` picks up code changes.
+
+The development configuration (`config.template.yaml`) fakes a house: set
+*Dev solar excess* to what the house would export with every consumer off, and
+the *Dev grid* meter follows from it and from what the fake consumers draw
+(heating rod 2000 W, heat pump 1200 W recommended and 2700 W forced, the wallbox
+what it is set to, the washer 500 W). Add consumers with those entities and
+powers to watch the allocation work.
+
+Without Docker, the same instance runs from the test virtual environment:
+link `config/custom_components` to `../custom_components` and start
+`venv/bin/hass -c config`.
 
 <br><br>
 

@@ -21,3 +21,4 @@
 - **Panel** in the sidebar: the surplus, the forecast, and every consumer in
   priority order with what it does and why. The order is changed by dragging,
   and each consumer can be put on Auto, On or Off.
+- **Diagnostics** with the configuration, the order and the last decision.

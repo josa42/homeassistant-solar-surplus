@@ -158,3 +158,8 @@ If creating PRs:
   panel carries its own `STRINGS` table; update `de` along with `en`.
 - `strings.json` and `translations/en.json` must stay identical, and `de.json`
   must have the same keys. `tests/test_translations.py` checks both.
+- To check the panel without a browser session, load it on a bare page with a
+  fake `hass` (a `connection.subscribeMessage` that hands it a snapshot from
+  `solar_surplus/subscribe`) and screenshot it with headless Chrome. Headless
+  Chrome will not make a window narrower than about 500 px; put the page in a
+  375 px iframe to see the phone layout.
