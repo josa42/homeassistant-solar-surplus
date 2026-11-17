@@ -9,6 +9,7 @@ import pytest
 from freezegun import freeze_time
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.core import HomeAssistant
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.solar_surplus.const import (
@@ -30,7 +31,7 @@ from custom_components.solar_surplus.const import (
 pytest_plugins = "pytest_homeassistant_custom_component"
 
 GRID = "sensor.grid"
-HEATING_ROD = "switch.heating_rod"
+HEATING_ROD = "input_boolean.heating_rod"
 
 HUB_DATA: dict[str, Any] = {CONF_GRID_POWER: GRID}
 
@@ -71,6 +72,94 @@ def consumer(data: dict[str, Any], title: str | None = None) -> ConfigSubentryDa
         subentry_type=SUBENTRY_TYPE_CONSUMER,
         title=title or data[CONF_NAME],
         unique_id=None,
+    )
+
+
+#: The fake devices: helpers, so a service call really changes their state.
+BOOLEANS = (
+    "heating_rod",
+    "pool_pump",
+    "sg_1",
+    "sg_2",
+    "washer_ready",
+    "washer_plug",
+    "ac",
+)
+
+
+@pytest.fixture
+async def devices(hass: HomeAssistant) -> None:
+    """Helpers that stand in for the devices, with a grid meter exporting nothing."""
+    assert await async_setup_component(
+        hass, "input_boolean", {"input_boolean": {name: {} for name in BOOLEANS}}
+    )
+    assert await async_setup_component(
+        hass,
+        "input_number",
+        {
+            "input_number": {
+                "wallbox": {
+                    "min": 0,
+                    "max": 3000,
+                    "step": 100,
+                    "unit_of_measurement": "W",
+                }
+            }
+        },
+    )
+    assert await async_setup_component(
+        hass,
+        "script",
+        {
+            "script": {
+                "ac_on": {
+                    "sequence": [
+                        {
+                            "action": "input_boolean.turn_on",
+                            "target": {"entity_id": "input_boolean.ac"},
+                        }
+                    ]
+                },
+                "ac_off": {
+                    "sequence": [
+                        {
+                            "action": "input_boolean.turn_off",
+                            "target": {"entity_id": "input_boolean.ac"},
+                        }
+                    ]
+                },
+            }
+        },
+    )
+    grid(hass, 0)
+
+
+def grid(hass: HomeAssistant, watts: float, unit: str = "W") -> None:
+    """Set the grid meter: positive draws from the grid."""
+    hass.states.async_set(
+        GRID, str(watts), {"unit_of_measurement": unit, "device_class": "power"}
+    )
+
+
+@pytest.fixture
+def setup_entry(hass: HomeAssistant, devices):
+    """Set an entry up over the fake devices, and return its coordinator."""
+
+    async def _setup(mock_entry: MockConfigEntry):
+        assert await hass.config_entries.async_setup(mock_entry.entry_id)
+        await hass.async_block_till_done()
+        return mock_entry.runtime_data
+
+    return _setup
+
+
+def hub(*consumers: dict[str, Any], **data: Any) -> MockConfigEntry:
+    """A hub entry with the given consumers, not yet added."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title=TITLE,
+        data={**HUB_DATA, **data},
+        subentries_data=[consumer(c) for c in consumers],
     )
 
 

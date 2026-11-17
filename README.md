@@ -83,6 +83,63 @@ All but the deferrable kind have the same four timings:
 
 <br><br>
 
+## How it decides
+
+Every 10 seconds, and whenever a meter or a consumer changes, the integration
+runs once through all consumers.
+
+1. **The surplus** is what the house exports, plus what the consumers it
+   controls draw right now, since that would be exported if they were off. What
+   the battery feeds the house is subtracted. What the battery charges with is
+   added once the battery is at *Battery first up to*; below that it is not, and
+   if its maximum charge power is known, the part of it the battery does not use
+   yet is held back too. The reserve is subtracted last.
+2. **Rises are smoothed**, over about 30 seconds, so a gap in the clouds does not
+   switch anything on. A fall counts at once.
+3. **The consumers are served in priority order.** Each takes the power it needs
+   if it fits, and leaves the rest to the ones below it. A consumer that is on
+   keeps running until the house draws from the grid; then the one lowest in the
+   order goes first, because everything above it was served before it.
+4. **Nothing flaps.** A consumer switches on only once enough surplus has held
+   for *Switch on after*, and off once too little has held for *Switch off
+   after*. Between switching it keeps its minimum on and off times. A consumer
+   switched by hand gets them too, so it is not switched back at once.
+
+Each kind adds its own rules:
+
+- **Variable** consumers take all of what is left, between their minimum power
+  and their power, in whole steps, and follow the surplus up and down while they
+  run. *Watts per unit* converts to the number's own unit, such as 230 for
+  amperes on one phase.
+- **SG Ready** heat pumps are *recommended* (state 3) when their power fits and
+  *forced* (state 4) when the forced threshold fits on top. With *Lock while
+  drawing from the grid* on, they are locked (state 1) while the house draws at
+  least the energy signal's blocked threshold with the battery empty, for at
+  most two hours at a time and with an hour's pause in between.
+- **Scripts** run the on or the off entity. Without an entity that says whether
+  the consumer is on, it counts as what it was last told.
+- **Deferrable** consumers wait until their ready entity is on. Then they start
+  as soon as their power fits, and at the latest at the deadline minus their run
+  time. Once started they are never stopped. A run is done once the power sensor
+  stays below *Done below* for *Done after*, or without a sensor once the run
+  time is over. A start switch is then turned off, if asked to, and a ready
+  `input_boolean` is turned off as well; while the ready entity stays on, it is
+  not started again. The deadline comes from a `datetime`, `input_datetime`,
+  `time` or timestamp `sensor`; a time of day is its next occurrence after the
+  consumer became ready, and without an entity the configured time is used.
+  While a consumer waits, the forecast says when enough surplus is expected.
+
+With a hand on a consumer (*Mode* on or off, or the panel) the allocation leaves
+it alone: on is on, off is off, at once. A deferrable consumer set to on starts
+now.
+
+The first run after a start only reads: nothing is written until the
+integration has seen every consumer once. After a restart every consumer starts
+its minimum times afresh, but a deferrable consumer halfway through its run is
+remembered.
+
+<br><br>
+
 ## Development
 
 ```bash
