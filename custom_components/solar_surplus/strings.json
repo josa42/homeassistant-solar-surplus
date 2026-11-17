@@ -1,0 +1,254 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Solar Surplus",
+        "description": "The meters the surplus is read from. Consumers are added afterwards, one by one, on the integration's page.",
+        "data": {
+          "grid_power": "Grid power",
+          "grid_export_positive": "Grid power is positive when exporting",
+          "battery_power": "Battery power",
+          "battery_discharge_positive": "Battery power is positive when discharging",
+          "battery_soc": "Battery charge",
+          "battery_target_soc": "Battery first up to",
+          "battery_min_soc": "Battery counts as empty at",
+          "battery_max_charge_power": "Battery maximum charge power",
+          "forecast_entries": "Solar forecast",
+          "reserve": "Reserve",
+          "base_load": "Base load"
+        },
+        "data_description": {
+          "grid_power": "The meter at the grid connection. By default positive means drawing from the grid.",
+          "battery_power": "Optional. By default positive means the battery charges.",
+          "battery_soc": "Optional. Without it, what the battery charges with is never handed out.",
+          "battery_target_soc": "Below this charge, what the battery charges with is not handed out to consumers.",
+          "battery_min_soc": "At or below this charge, drawing from the grid blocks the energy signal.",
+          "battery_max_charge_power": "Optional. Known, the part of it the battery does not use yet is held back for it while it is below the charge above.",
+          "forecast_entries": "Optional. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
+          "reserve": "Held back from the surplus. A consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid.",
+          "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Solar Surplus is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Solar Surplus",
+        "menu_options": {
+          "inputs": "Meters and forecast",
+          "energy_signal": "Energy signal"
+        }
+      },
+      "inputs": {
+        "title": "Meters and forecast",
+        "data": {
+          "grid_power": "Grid power",
+          "grid_export_positive": "Grid power is positive when exporting",
+          "battery_power": "Battery power",
+          "battery_discharge_positive": "Battery power is positive when discharging",
+          "battery_soc": "Battery charge",
+          "battery_target_soc": "Battery first up to",
+          "battery_min_soc": "Battery counts as empty at",
+          "battery_max_charge_power": "Battery maximum charge power",
+          "forecast_entries": "Solar forecast",
+          "reserve": "Reserve",
+          "base_load": "Base load"
+        },
+        "data_description": {
+          "grid_power": "The meter at the grid connection. By default positive means drawing from the grid.",
+          "battery_power": "Optional. By default positive means the battery charges.",
+          "battery_soc": "Optional. Without it, what the battery charges with is never handed out.",
+          "battery_target_soc": "Below this charge, what the battery charges with is not handed out to consumers.",
+          "battery_min_soc": "At or below this charge, drawing from the grid blocks the energy signal.",
+          "battery_max_charge_power": "Optional. Known, the part of it the battery does not use yet is held back for it while it is below the charge above.",
+          "forecast_entries": "Optional. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
+          "reserve": "Held back from the surplus. A consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid.",
+          "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this."
+        }
+      },
+      "energy_signal": {
+        "title": "Energy signal",
+        "description": "A sensor other integrations can follow, after the SG Ready states: blocked, normal, recommended and forced.",
+        "data": {
+          "signal_recommended": "Recommended from",
+          "signal_forced": "Forced from",
+          "signal_forced_soc": "Forced with the battery at",
+          "signal_blocked": "Blocked from grid import of",
+          "signal_rise_delay": "Rise after",
+          "signal_fall_delay": "Fall after",
+          "signal_min_dwell": "Hold each state at least",
+          "signal_followers": "Power of consumers that follow the signal"
+        },
+        "data_description": {
+          "signal_recommended": "Surplus left at the signal's place in the priority order.",
+          "signal_forced_soc": "With the battery this full, a recommended surplus is forced.",
+          "signal_blocked": "Only while the battery is empty or there is none.",
+          "signal_followers": "Optional. Their draw is added back, so the signal does not switch itself off when they react to it."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "consumer": {
+      "entry_type": "Consumer",
+      "initiate_flow": {
+        "user": "Add a consumer",
+        "reconfigure": "Change this consumer"
+      },
+      "step": {
+        "user": {
+          "title": "Add a consumer",
+          "description": "How is it switched?",
+          "data": {
+            "adapter": "Switched through"
+          }
+        },
+        "switch": {
+          "title": "A switched consumer",
+          "description": "Switched on and off, such as a heating rod or a smart plug.",
+          "data": {
+            "name": "Name",
+            "power": "Power",
+            "power_sensor": "Power sensor",
+            "switch_entity": "Switch",
+            "min_on_time": "Minimum on time",
+            "min_off_time": "Minimum off time",
+            "on_delay": "Switch on after",
+            "off_delay": "Switch off after"
+          },
+          "data_description": {
+            "on_delay": "How long enough surplus has to hold.",
+            "off_delay": "How long too little surplus has to hold.",
+            "power": "What it draws when on. Decides whether it fits, and counts as its draw without a power sensor.",
+            "power_sensor": "Optional. What it really draws, which is better than the power above once it is on."
+          }
+        },
+        "number": {
+          "title": "A variable consumer",
+          "description": "Its power is set through a number, such as a wallbox's charging current. It takes all it can get, in steps.",
+          "data": {
+            "name": "Name",
+            "power": "Power",
+            "power_sensor": "Power sensor",
+            "number_entity": "Number",
+            "min_power": "Minimum power",
+            "power_step": "Power step",
+            "watts_per_unit": "Watts per unit",
+            "switch_entity": "Enable switch",
+            "min_on_time": "Minimum on time",
+            "min_off_time": "Minimum off time",
+            "on_delay": "Switch on after",
+            "off_delay": "Switch off after"
+          },
+          "data_description": {
+            "on_delay": "How long enough surplus has to hold.",
+            "off_delay": "How long too little surplus has to hold.",
+            "power": "The most it may take.",
+            "power_sensor": "Optional. What it really draws, which is better than the power above once it is on.",
+            "watts_per_unit": "1 for a number in watts, 230 for amperes on one phase, 690 on three.",
+            "switch_entity": "Optional. Switched on while it runs, off otherwise."
+          }
+        },
+        "sg_ready": {
+          "title": "An SG Ready heat pump",
+          "description": "Two contacts set one of four states: locked, normal, recommended and forced.",
+          "data": {
+            "name": "Name",
+            "power": "Power",
+            "power_sensor": "Power sensor",
+            "sg_contact_1": "Contact 1",
+            "sg_contact_2": "Contact 2",
+            "sg_forced_power": "Forced from additional",
+            "sg_lock": "Lock while drawing from the grid",
+            "min_on_time": "Minimum on time",
+            "min_off_time": "Minimum off time",
+            "on_delay": "Switch on after",
+            "off_delay": "Switch off after"
+          },
+          "data_description": {
+            "on_delay": "How long enough surplus has to hold.",
+            "off_delay": "How long too little surplus has to hold.",
+            "power": "What it draws when recommended.",
+            "power_sensor": "Optional. What it really draws, which is better than the power above once it is on.",
+            "sg_forced_power": "Optional. Surplus beyond its own power that switches it to forced. Empty, it is never forced.",
+            "sg_lock": "Only while the battery is empty, and for at most two hours at a time."
+          }
+        },
+        "script": {
+          "title": "A consumer with scripts",
+          "description": "Started and stopped through scripts, buttons or scenes.",
+          "data": {
+            "name": "Name",
+            "power": "Power",
+            "power_sensor": "Power sensor",
+            "on_entity": "Switch on with",
+            "off_entity": "Switch off with",
+            "state_entity": "On while",
+            "min_on_time": "Minimum on time",
+            "min_off_time": "Minimum off time",
+            "on_delay": "Switch on after",
+            "off_delay": "Switch off after"
+          },
+          "data_description": {
+            "on_delay": "How long enough surplus has to hold.",
+            "off_delay": "How long too little surplus has to hold.",
+            "power": "What it draws when on. Decides whether it fits, and counts as its draw without a power sensor.",
+            "power_sensor": "Optional. What it really draws, which is better than the power above once it is on.",
+            "state_entity": "Optional. Without it, the consumer counts as what it was last told."
+          }
+        },
+        "deferrable": {
+          "title": "A deferrable consumer",
+          "description": "Waits to be started, such as a washing machine: once ready, it starts as soon as its power fits the surplus, and at the latest so that it is done by its deadline.",
+          "data": {
+            "name": "Name",
+            "power": "Power",
+            "power_sensor": "Power sensor",
+            "ready_entity": "Ready while",
+            "start_entity": "Start with",
+            "deadline_entity": "Done by (entity)",
+            "deadline_time": "Done by",
+            "run_time": "Run time",
+            "finish_power": "Done below",
+            "finish_delay": "Done after",
+            "turn_off_when_done": "Turn off when done",
+            "on_delay": "Start after"
+          },
+          "data_description": {
+            "power": "What it draws on average while it runs. It starts once this much surplus is there.",
+            "power_sensor": "Optional. What it really draws, which is better than the power above once it is on.",
+            "ready_entity": "An input boolean is turned off again once the run is done.",
+            "start_entity": "A switch is turned on, a script, button or scene is run.",
+            "deadline_entity": "Optional. A date and time, or a time of day. Without it, the time below is used.",
+            "deadline_time": "The next time of day after it became ready.",
+            "finish_power": "With a power sensor, the run is done once it draws less than this for the time below. Without one, once the run time is over.",
+            "turn_off_when_done": "Only for a switch."
+          }
+        }
+      },
+      "error": {
+        "already_controlled": "Another consumer is already switched through this entity.",
+        "same_contact": "The two contacts have to be different entities.",
+        "min_above_power": "The minimum power is above the power."
+      },
+      "abort": {
+        "reconfigure_successful": "The consumer was changed."
+      }
+    }
+  },
+  "selector": {
+    "adapter": {
+      "options": {
+        "switch": "A switched consumer",
+        "number": "A variable consumer",
+        "sg_ready": "An SG Ready heat pump",
+        "script": "A consumer with scripts",
+        "deferrable": "A deferrable consumer"
+      }
+    }
+  }
+}

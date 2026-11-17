@@ -1,0 +1,254 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Solarüberschuss",
+        "description": "Die Zähler, aus denen der Überschuss gelesen wird. Verbraucher werden danach einzeln auf der Seite der Integration hinzugefügt.",
+        "data": {
+          "grid_power": "Netzleistung",
+          "grid_export_positive": "Netzleistung ist bei Einspeisung positiv",
+          "battery_power": "Batterieleistung",
+          "battery_discharge_positive": "Batterieleistung ist beim Entladen positiv",
+          "battery_soc": "Batterieladestand",
+          "battery_target_soc": "Batterie zuerst bis",
+          "battery_min_soc": "Batterie gilt als leer bei",
+          "battery_max_charge_power": "Maximale Ladeleistung der Batterie",
+          "forecast_entries": "Solarprognose",
+          "reserve": "Reserve",
+          "base_load": "Grundlast"
+        },
+        "data_description": {
+          "grid_power": "Der Zähler am Netzanschluss. Standardmäßig bedeutet positiv Bezug aus dem Netz.",
+          "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie lädt.",
+          "battery_soc": "Optional. Ohne ihn wird die Ladeleistung der Batterie nie verteilt.",
+          "battery_target_soc": "Unter diesem Ladestand wird die Ladeleistung der Batterie nicht an Verbraucher verteilt.",
+          "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug das Energiesignal.",
+          "battery_max_charge_power": "Optional. Ist sie bekannt, wird der Teil, den die Batterie noch nicht nutzt, für sie zurückgehalten, solange sie unter dem Ladestand oben ist.",
+          "forecast_entries": "Optional. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
+          "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
+          "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Solarüberschuss ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Solarüberschuss",
+        "menu_options": {
+          "inputs": "Zähler und Prognose",
+          "energy_signal": "Energiesignal"
+        }
+      },
+      "inputs": {
+        "title": "Zähler und Prognose",
+        "data": {
+          "grid_power": "Netzleistung",
+          "grid_export_positive": "Netzleistung ist bei Einspeisung positiv",
+          "battery_power": "Batterieleistung",
+          "battery_discharge_positive": "Batterieleistung ist beim Entladen positiv",
+          "battery_soc": "Batterieladestand",
+          "battery_target_soc": "Batterie zuerst bis",
+          "battery_min_soc": "Batterie gilt als leer bei",
+          "battery_max_charge_power": "Maximale Ladeleistung der Batterie",
+          "forecast_entries": "Solarprognose",
+          "reserve": "Reserve",
+          "base_load": "Grundlast"
+        },
+        "data_description": {
+          "grid_power": "Der Zähler am Netzanschluss. Standardmäßig bedeutet positiv Bezug aus dem Netz.",
+          "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie lädt.",
+          "battery_soc": "Optional. Ohne ihn wird die Ladeleistung der Batterie nie verteilt.",
+          "battery_target_soc": "Unter diesem Ladestand wird die Ladeleistung der Batterie nicht an Verbraucher verteilt.",
+          "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug das Energiesignal.",
+          "battery_max_charge_power": "Optional. Ist sie bekannt, wird der Teil, den die Batterie noch nicht nutzt, für sie zurückgehalten, solange sie unter dem Ladestand oben ist.",
+          "forecast_entries": "Optional. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
+          "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
+          "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert."
+        }
+      },
+      "energy_signal": {
+        "title": "Energiesignal",
+        "description": "Ein Sensor, dem andere Integrationen folgen können, nach den SG-Ready-Zuständen: gesperrt, normal, empfohlen und erzwungen.",
+        "data": {
+          "signal_recommended": "Empfohlen ab",
+          "signal_forced": "Erzwungen ab",
+          "signal_forced_soc": "Erzwungen bei Batterie ab",
+          "signal_blocked": "Gesperrt ab Netzbezug von",
+          "signal_rise_delay": "Steigen nach",
+          "signal_fall_delay": "Fallen nach",
+          "signal_min_dwell": "Jeden Zustand mindestens halten",
+          "signal_followers": "Leistung der Verbraucher, die dem Signal folgen"
+        },
+        "data_description": {
+          "signal_recommended": "Überschuss, der am Platz des Signals in der Reihenfolge übrig ist.",
+          "signal_forced_soc": "Ist die Batterie so voll, wird ein empfohlener Überschuss zu erzwungen.",
+          "signal_blocked": "Nur solange die Batterie leer ist oder keine vorhanden ist.",
+          "signal_followers": "Optional. Ihr Verbrauch wird zurückgerechnet, damit sich das Signal nicht selbst abschaltet, wenn sie darauf reagieren."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "consumer": {
+      "entry_type": "Verbraucher",
+      "initiate_flow": {
+        "user": "Verbraucher hinzufügen",
+        "reconfigure": "Verbraucher ändern"
+      },
+      "step": {
+        "user": {
+          "title": "Verbraucher hinzufügen",
+          "description": "Wie wird er geschaltet?",
+          "data": {
+            "adapter": "Geschaltet über"
+          }
+        },
+        "switch": {
+          "title": "Geschalteter Verbraucher",
+          "description": "Wird ein- und ausgeschaltet, etwa ein Heizstab oder eine Steckdose.",
+          "data": {
+            "name": "Name",
+            "power": "Leistung",
+            "power_sensor": "Leistungssensor",
+            "switch_entity": "Schalter",
+            "min_on_time": "Mindestlaufzeit",
+            "min_off_time": "Mindestpause",
+            "on_delay": "Einschalten nach",
+            "off_delay": "Ausschalten nach"
+          },
+          "data_description": {
+            "on_delay": "Wie lange genug Überschuss anliegen muss.",
+            "off_delay": "Wie lange zu wenig Überschuss anliegen muss.",
+            "power": "Was er eingeschaltet verbraucht. Entscheidet, ob er passt, und gilt ohne Leistungssensor als sein Verbrauch.",
+            "power_sensor": "Optional. Was er wirklich verbraucht; eingeschaltet besser als die Leistung oben."
+          }
+        },
+        "number": {
+          "title": "Variabler Verbraucher",
+          "description": "Seine Leistung wird über eine Zahl gesetzt, etwa der Ladestrom einer Wallbox. Er nimmt, was er bekommen kann, in Stufen.",
+          "data": {
+            "name": "Name",
+            "power": "Leistung",
+            "power_sensor": "Leistungssensor",
+            "number_entity": "Zahl",
+            "min_power": "Mindestleistung",
+            "power_step": "Leistungsstufe",
+            "watts_per_unit": "Watt pro Einheit",
+            "switch_entity": "Freigabeschalter",
+            "min_on_time": "Mindestlaufzeit",
+            "min_off_time": "Mindestpause",
+            "on_delay": "Einschalten nach",
+            "off_delay": "Ausschalten nach"
+          },
+          "data_description": {
+            "on_delay": "Wie lange genug Überschuss anliegen muss.",
+            "off_delay": "Wie lange zu wenig Überschuss anliegen muss.",
+            "power": "Das Meiste, was er nehmen darf.",
+            "power_sensor": "Optional. Was er wirklich verbraucht; eingeschaltet besser als die Leistung oben.",
+            "watts_per_unit": "1 für eine Zahl in Watt, 230 für Ampere auf einer Phase, 690 auf drei.",
+            "switch_entity": "Optional. Ein, solange er läuft, sonst aus."
+          }
+        },
+        "sg_ready": {
+          "title": "SG-Ready-Wärmepumpe",
+          "description": "Zwei Kontakte setzen einen von vier Zuständen: gesperrt, normal, empfohlen und erzwungen.",
+          "data": {
+            "name": "Name",
+            "power": "Leistung",
+            "power_sensor": "Leistungssensor",
+            "sg_contact_1": "Kontakt 1",
+            "sg_contact_2": "Kontakt 2",
+            "sg_forced_power": "Erzwungen ab zusätzlich",
+            "sg_lock": "Bei Netzbezug sperren",
+            "min_on_time": "Mindestlaufzeit",
+            "min_off_time": "Mindestpause",
+            "on_delay": "Einschalten nach",
+            "off_delay": "Ausschalten nach"
+          },
+          "data_description": {
+            "on_delay": "Wie lange genug Überschuss anliegen muss.",
+            "off_delay": "Wie lange zu wenig Überschuss anliegen muss.",
+            "power": "Was sie im Zustand empfohlen verbraucht.",
+            "power_sensor": "Optional. Was er wirklich verbraucht; eingeschaltet besser als die Leistung oben.",
+            "sg_forced_power": "Optional. Überschuss über ihre eigene Leistung hinaus, der sie auf erzwungen schaltet. Leer wird sie nie erzwungen.",
+            "sg_lock": "Nur solange die Batterie leer ist, und höchstens zwei Stunden am Stück."
+          }
+        },
+        "script": {
+          "title": "Verbraucher über Skripte",
+          "description": "Wird über Skripte, Tasten oder Szenen gestartet und gestoppt.",
+          "data": {
+            "name": "Name",
+            "power": "Leistung",
+            "power_sensor": "Leistungssensor",
+            "on_entity": "Einschalten mit",
+            "off_entity": "Ausschalten mit",
+            "state_entity": "Ein, solange",
+            "min_on_time": "Mindestlaufzeit",
+            "min_off_time": "Mindestpause",
+            "on_delay": "Einschalten nach",
+            "off_delay": "Ausschalten nach"
+          },
+          "data_description": {
+            "on_delay": "Wie lange genug Überschuss anliegen muss.",
+            "off_delay": "Wie lange zu wenig Überschuss anliegen muss.",
+            "power": "Was er eingeschaltet verbraucht. Entscheidet, ob er passt, und gilt ohne Leistungssensor als sein Verbrauch.",
+            "power_sensor": "Optional. Was er wirklich verbraucht; eingeschaltet besser als die Leistung oben.",
+            "state_entity": "Optional. Ohne gilt der Verbraucher als das, was ihm zuletzt gesagt wurde."
+          }
+        },
+        "deferrable": {
+          "title": "Aufschiebbarer Verbraucher",
+          "description": "Wartet auf den Start, etwa eine Waschmaschine: ist sie bereit, startet sie, sobald ihre Leistung in den Überschuss passt, spätestens aber so, dass sie bis zur Deadline fertig ist.",
+          "data": {
+            "name": "Name",
+            "power": "Leistung",
+            "power_sensor": "Leistungssensor",
+            "ready_entity": "Bereit, solange",
+            "start_entity": "Starten mit",
+            "deadline_entity": "Fertig bis (Entität)",
+            "deadline_time": "Fertig bis",
+            "run_time": "Laufzeit",
+            "finish_power": "Fertig unter",
+            "finish_delay": "Fertig nach",
+            "turn_off_when_done": "Nach dem Ende ausschalten",
+            "on_delay": "Starten nach"
+          },
+          "data_description": {
+            "power": "Was sie im Mittel während des Laufs verbraucht. Sie startet, sobald so viel Überschuss da ist.",
+            "power_sensor": "Optional. Was er wirklich verbraucht; eingeschaltet besser als die Leistung oben.",
+            "ready_entity": "Ein Input Boolean wird nach dem Lauf wieder ausgeschaltet.",
+            "start_entity": "Ein Schalter wird eingeschaltet, ein Skript, eine Taste oder Szene ausgeführt.",
+            "deadline_entity": "Optional. Datum und Uhrzeit oder eine Uhrzeit. Ohne wird die Uhrzeit unten verwendet.",
+            "deadline_time": "Die nächste solche Uhrzeit, nachdem sie bereit wurde.",
+            "finish_power": "Mit Leistungssensor ist der Lauf fertig, sobald sie so lange wie unten weniger verbraucht. Ohne, sobald die Laufzeit vorbei ist.",
+            "turn_off_when_done": "Nur bei einem Schalter."
+          }
+        }
+      },
+      "error": {
+        "already_controlled": "Über diese Entität wird schon ein anderer Verbraucher geschaltet.",
+        "same_contact": "Die beiden Kontakte müssen verschiedene Entitäten sein.",
+        "min_above_power": "Die Mindestleistung liegt über der Leistung."
+      },
+      "abort": {
+        "reconfigure_successful": "Der Verbraucher wurde geändert."
+      }
+    }
+  },
+  "selector": {
+    "adapter": {
+      "options": {
+        "switch": "Geschalteter Verbraucher",
+        "number": "Variabler Verbraucher",
+        "sg_ready": "SG-Ready-Wärmepumpe",
+        "script": "Verbraucher über Skripte",
+        "deferrable": "Aufschiebbarer Verbraucher"
+      }
+    }
+  }
+}
