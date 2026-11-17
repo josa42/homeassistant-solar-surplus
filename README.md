@@ -83,6 +83,60 @@ All but the deferrable kind have the same four timings:
 
 <br><br>
 
+## Entities
+
+The hub's device:
+
+| Entity | What it shows |
+| --- | --- |
+| `sensor.solar_surplus_surplus` | The surplus that is handed out, after smoothing and the reserve |
+| `sensor.solar_surplus_allocated_power` | What the consumers take of it |
+| `sensor.solar_surplus_remaining_surplus` | What is left after them |
+| `sensor.solar_surplus_forecast_remaining_today` | The solar energy still expected today (only with a forecast) |
+| `sensor.solar_surplus_forecast_power` | The solar power the forecast expects right now (only with a forecast) |
+| `sensor.solar_surplus_energy_signal` | The energy signal, see below |
+| `switch.solar_surplus_control` | Off, every decision is still made and shown, but nothing is switched. It keeps its state across a restart. |
+
+Each consumer gets a device of its own:
+
+| Entity | What it shows |
+| --- | --- |
+| `sensor.<consumer>_status` | `off`, `on`, `locked`, `waiting`, `running`, `done`, `idle` (not ready) or `unavailable`. The `reason` attribute says why, the others give the figures behind it: the power `needed`, the surplus `available` at its place in the order, `until` when a delay or minimum time runs out, and for a deferrable consumer its `deadline`, `latest_start` and `expected_start`. |
+| `select.<consumer>_mode` | `auto` lets the allocation decide, `on` and `off` put a hand on it. |
+
+### Energy signal
+
+`sensor.solar_surplus_energy_signal` is meant for other integrations to follow,
+such as a climate controller that heats a little more while there is surplus.
+It is an enum sensor after the SG Ready states 1 to 4, with text states so it is
+not taken for a measurement:
+
+| State | SG Ready | When |
+| --- | --- | --- |
+| `blocked` | 1 | The house draws at least *Blocked from grid import of* (500 W) and the battery is empty or there is none. Consumers should use only what is necessary. |
+| `normal` | 2 | Anything else. |
+| `recommended` | 3 | At least *Recommended from* (500 W) is left. Extra consumption is welcome. |
+| `forced` | 4 | At least *Forced from* (2000 W) is left, or the recommended surplus with the battery at *Forced with the battery at* (95 %). Use whatever you can. |
+
+It sits in the priority order like a consumer, last unless it is moved in the
+panel: the consumers above it are served before it sees what is left, the ones
+below it after. It takes nothing away from them. The draw of the *consumers that
+follow the signal*, if their power sensors are given, is added back, so the
+signal does not switch itself off when they react to it.
+
+It rises after *Rise after* (120 s) and falls after *Fall after* (300 s), and
+holds each state at least *Hold each state at least* (10 min). Whoever follows it
+can take it at its word. Without a grid reading it is `unavailable` rather than
+a guess.
+
+Attributes: `reason` (`pv_surplus`, `battery_full`, `grid_import`,
+`low_battery` or `none`), `since`, and `until` while recommended or forced, when
+the forecast expects the surplus to end.
+
+These are set under **Configure** → **Energy signal**.
+
+<br><br>
+
 ## How it decides
 
 Every 10 seconds, and whenever a meter or a consumer changes, the integration

@@ -250,5 +250,105 @@
         "deferrable": "A deferrable consumer"
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "surplus": {
+        "name": "Surplus"
+      },
+      "allocated_power": {
+        "name": "Allocated power"
+      },
+      "remaining_power": {
+        "name": "Remaining surplus"
+      },
+      "forecast_remaining_today": {
+        "name": "Forecast remaining today"
+      },
+      "forecast_power": {
+        "name": "Forecast power"
+      },
+      "energy_signal": {
+        "name": "Energy signal",
+        "state": {
+          "blocked": "Blocked",
+          "normal": "Normal",
+          "recommended": "Recommended",
+          "forced": "Forced"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Reason",
+            "state": {
+              "pv_surplus": "Solar surplus",
+              "battery_full": "Battery full",
+              "grid_import": "Drawing from the grid",
+              "low_battery": "Battery empty",
+              "none": "None"
+            }
+          },
+          "since": {
+            "name": "Since"
+          },
+          "until": {
+            "name": "Until"
+          }
+        }
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "locked": "Locked",
+          "waiting": "Waiting",
+          "running": "Running",
+          "done": "Done",
+          "idle": "Not ready",
+          "unavailable": "Unavailable"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Reason",
+            "state": {
+              "override_on": "Switched on by hand",
+              "override_off": "Switched off by hand",
+              "unavailable": "Entity unavailable",
+              "surplus": "Enough surplus",
+              "insufficient_surplus": "Not enough surplus",
+              "on_delay": "Waiting for the surplus to hold",
+              "off_delay": "Waiting for the surplus to come back",
+              "min_on_time": "Minimum on time",
+              "min_off_time": "Minimum off time",
+              "forced_surplus": "Plenty of surplus",
+              "grid_import": "Drawing from the grid",
+              "lock_limit": "Lock limit reached",
+              "not_ready": "Not ready",
+              "waiting_forecast": "Waiting for the forecast surplus",
+              "waiting_deadline": "Waiting, starts by its deadline",
+              "deadline": "Started for its deadline",
+              "running": "Running",
+              "finished": "Done",
+              "no_data": "No grid reading"
+            }
+          }
+        }
+      }
+    },
+    "switch": {
+      "control": {
+        "name": "Control"
+      }
+    },
+    "select": {
+      "override": {
+        "name": "Mode",
+        "state": {
+          "auto": "Automatic",
+          "on": "On",
+          "off": "Off"
+        }
+      }
+    }
   }
 }

@@ -10,6 +10,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -164,6 +165,21 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         #: anything has been in its state.
         self._first_run = True
         self._unsubscribe: list = []
+        self.hub_device_id: str | None = None
+
+    @callback
+    def async_register_hub_device(self) -> str:
+        """Make the hub's device, so the consumers' devices can hang off it."""
+        device = dr.async_get(self.hass).async_get_or_create(
+            config_entry_id=self.entry.entry_id,
+            identifiers={(DOMAIN, self.entry.entry_id)},
+            name=self.entry.title,
+            manufacturer="Solar Surplus",
+            model="Hub",
+            entry_type=dr.DeviceEntryType.SERVICE,
+        )
+        self.hub_device_id = device.id
+        return device.id
 
     ############################################################################
     # Watching

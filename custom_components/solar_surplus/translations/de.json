@@ -250,5 +250,105 @@
         "deferrable": "Aufschiebbarer Verbraucher"
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "surplus": {
+        "name": "Überschuss"
+      },
+      "allocated_power": {
+        "name": "Verteilte Leistung"
+      },
+      "remaining_power": {
+        "name": "Verbleibender Überschuss"
+      },
+      "forecast_remaining_today": {
+        "name": "Prognose Rest heute"
+      },
+      "forecast_power": {
+        "name": "Prognostizierte Leistung"
+      },
+      "energy_signal": {
+        "name": "Energiesignal",
+        "state": {
+          "blocked": "Gesperrt",
+          "normal": "Normal",
+          "recommended": "Empfohlen",
+          "forced": "Erzwungen"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Grund",
+            "state": {
+              "pv_surplus": "Solarüberschuss",
+              "battery_full": "Batterie voll",
+              "grid_import": "Netzbezug",
+              "low_battery": "Batterie leer",
+              "none": "Keiner"
+            }
+          },
+          "since": {
+            "name": "Seit"
+          },
+          "until": {
+            "name": "Bis"
+          }
+        }
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "off": "Aus",
+          "on": "Ein",
+          "locked": "Gesperrt",
+          "waiting": "Wartet",
+          "running": "Läuft",
+          "done": "Fertig",
+          "idle": "Nicht bereit",
+          "unavailable": "Nicht verfügbar"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Grund",
+            "state": {
+              "override_on": "Von Hand eingeschaltet",
+              "override_off": "Von Hand ausgeschaltet",
+              "unavailable": "Entität nicht verfügbar",
+              "surplus": "Genug Überschuss",
+              "insufficient_surplus": "Zu wenig Überschuss",
+              "on_delay": "Wartet, ob der Überschuss hält",
+              "off_delay": "Wartet, ob der Überschuss zurückkommt",
+              "min_on_time": "Mindestlaufzeit",
+              "min_off_time": "Mindestpause",
+              "forced_surplus": "Reichlich Überschuss",
+              "grid_import": "Netzbezug",
+              "lock_limit": "Sperrgrenze erreicht",
+              "not_ready": "Nicht bereit",
+              "waiting_forecast": "Wartet auf den prognostizierten Überschuss",
+              "waiting_deadline": "Wartet, startet rechtzeitig zur Deadline",
+              "deadline": "Wegen der Deadline gestartet",
+              "running": "Läuft",
+              "finished": "Fertig",
+              "no_data": "Kein Netzwert"
+            }
+          }
+        }
+      }
+    },
+    "switch": {
+      "control": {
+        "name": "Steuerung"
+      }
+    },
+    "select": {
+      "override": {
+        "name": "Modus",
+        "state": {
+          "auto": "Automatisch",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      }
+    }
   }
 }
