@@ -222,9 +222,11 @@ The integration adds **Solar Surplus** to the sidebar. It shows:
 
 - the surplus (smoothed, and what it is right now), the grid, the battery, what
   is handed out and what is left
-- the forecast for the next hours as bars, against the line of base load and
-  reserve that a forecast hour has to clear before it counts as surplus, and
-  below it when each consumer is expected to run, see [Plan](#plan)
+- the forecast for a whole day as bars, today by default with a line at the
+  current time, against the line of base load and reserve that a forecast hour
+  has to clear before it counts as surplus, and below it when each consumer is
+  expected to run, see [Plan](#plan). The arrows step through the days the
+  forecast covers, and *Today* goes back
 - every consumer in priority order, with what it is doing, why, and the figures
   behind it: the surplus it saw at its place, until when a delay or minimum time
   runs, when it is next expected to run, and for a deferrable consumer by when

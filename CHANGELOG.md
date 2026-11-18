@@ -8,6 +8,8 @@
   period ahead. The panel shows under the forecast when each consumer is
   expected to run, and the status sensors carry `expected_on` and
   `expected_off`.
+- The panel's forecast shows a whole day, today by default with a line at the
+  current time, and steps through the days the forecast covers.
 - **Best window** for deferrable consumers: the start where the forecast covers
   most of the run, before the deadline, shown with its expected solar share as
   `recommended_start` and `solar_share`. With *Wait for the best window* on, the
