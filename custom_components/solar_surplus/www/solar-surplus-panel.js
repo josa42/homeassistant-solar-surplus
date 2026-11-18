@@ -7,7 +7,7 @@
 //
 // Bump PANEL_VERSION here and in const.py together. The query string on the
 // module URL is the only cache-buster.
-const PANEL_VERSION = "0.2.0";
+const PANEL_VERSION = "0.3.0";
 
 const NARROW_QUERY = "(max-width: 700px)";
 const TABS = ["overview", "priority"];
