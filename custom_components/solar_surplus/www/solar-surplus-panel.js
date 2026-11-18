@@ -611,6 +611,7 @@ const STYLE = `
   .forecast .chart { position: relative; }
   .forecast .now-line {
     position: absolute;
+    z-index: 1;
     top: 0;
     bottom: 0;
     width: 0;
@@ -620,7 +621,8 @@ const STYLE = `
   .forecast .plot { position: relative; }
   .forecast .plot > svg { display: block; width: 100%; height: 120px; }
   .forecast .grid { stroke: var(--divider-color, rgba(0, 0, 0, 0.12)); }
-  .forecast .axis { position: absolute; inset: 0; pointer-events: none; }
+  .forecast .axis { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
+  .forecast .track .now-line { top: -3px; bottom: -3px; }
   .forecast .axis span {
     position: absolute;
     left: 0;
@@ -1082,10 +1084,24 @@ class SolarSurplusPanel extends HTMLElement {
     const shown = periods.filter((p) => dayKey(hass, p.start) === day);
     // The forecast's periods are the axis; a day without them gets hours.
     let bounds = shown.map((p) => [new Date(p.start).getTime(), new Date(p.end).getTime()]);
-    if (!bounds.length) {
-      const end = dayStart(hass, shiftDay(day, 1));
-      for (let start = dayStart(hass, day); start < end; start += 3600000) bounds.push([start, Math.min(start + 3600000, end)]);
+    // The hours of the day the forecast leaves out, the night mostly, so the
+    // day always runs from midnight to midnight.
+    const midnight = dayStart(hass, day);
+    const nextMidnight = dayStart(hass, shiftDay(day, 1));
+    // As long as the forecast's own periods, so the slots stay even.
+    const length = bounds.length ? bounds[0][1] - bounds[0][0] : 3600000;
+    const before = [];
+    for (let end = bounds.length ? bounds[0][0] : nextMidnight; end > midnight; end -= length) {
+      before.unshift([Math.max(end - length, midnight), end]);
     }
+    const after = [];
+    if (bounds.length) {
+      for (let start = bounds[bounds.length - 1][1]; start < nextMidnight; start += length) {
+        after.push([start, Math.min(start + length, nextMidnight)]);
+      }
+    }
+    const offset = before.length;
+    bounds = [...before, ...bounds, ...after];
     const first = bounds[0][0];
     const last = bounds[bounds.length - 1][1];
     const isToday = day === today;
@@ -1130,7 +1146,7 @@ class SolarSurplusPanel extends HTMLElement {
       const barHeight = (p.watts / peak) * (plot - 4);
       const rect = document.createElementNS(ns, "rect");
       rect.setAttribute("class", `bar${new Date(p.end).getTime() <= now ? " past" : ""}`);
-      rect.setAttribute("x", String(i * slot + 1));
+      rect.setAttribute("x", String((i + offset) * slot + 1));
       rect.setAttribute("y", String(plot - barHeight));
       rect.setAttribute("width", String(Math.max(slot - 2, 1)));
       rect.setAttribute("height", String(Math.max(barHeight, 0)));
@@ -1223,15 +1239,11 @@ class SolarSurplusPanel extends HTMLElement {
         }
         box.append(right);
       }
+      if (isToday) box.append(this._nowLine(at(now), now));
       chart.append(box);
     }
     if (!shown.length) chart.append(h("div", { class: "hint", text: t(hass, this._state.has_forecast ? "forecast.no_forecast" : "forecast.none") }));
-    chart.append(hours, this._renderTracks(at, first, last, now));
-    if (isToday) {
-      const marker = h("div", { class: "now-line", title: formatTime(hass, new Date(now).toISOString()) });
-      marker.style.left = `${at(now) * 100}%`;
-      chart.append(marker);
-    }
+    chart.append(hours, this._renderTracks(at, first, last, now, isToday));
     const legend = h("div", { class: "legend" });
     legend.append(
       h("span", {
@@ -1362,7 +1374,15 @@ class SolarSurplusPanel extends HTMLElement {
 
   // One track per consumer under the bars, on the same time axis: what ran,
   // from the history, and what the forecast expects to run.
-  _renderTracks(at, first, last, now) {
+  // The current time, as a line over the bars or a mark on a track; never
+  // across the labels and names between them.
+  _nowLine(x, now) {
+    const line = h("div", { class: "now-line", title: formatTime(this._hass, new Date(now).toISOString()) });
+    line.style.left = `${x * 100}%`;
+    return line;
+  }
+
+  _renderTracks(at, first, last, now, isToday) {
     const hass = this._hass;
     const plans = this._state.decision?.plan || {};
     const consumers = this._state.consumers || {};
@@ -1390,6 +1410,7 @@ class SolarSurplusPanel extends HTMLElement {
     let anyRan = false;
     for (const [id, list] of rows) {
       const track = h("div", { class: "track" });
+      if (isToday) track.append(this._nowLine(at(now), now));
       for (const segment of list) {
         const left = at(segment.start);
         const right = at(segment.end);

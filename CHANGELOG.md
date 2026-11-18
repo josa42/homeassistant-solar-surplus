@@ -7,6 +7,9 @@
 - A forecast that leaves the night out, as Forecast.Solar does, is filled in
   with hours of nothing, so the plan and the battery's expected charge go
   through the night instead of jumping to the morning.
+- The panel's forecast runs from midnight to midnight also where the forecast
+  leaves the night out, and the line of the current time stays off the axis
+  labels and the consumers' names.
 
 ## 0.3.0 - 2026-11-18
 
