@@ -36,6 +36,12 @@ homeassistant:
 # forced, the wallbox what it is set to, the washer 500 W while its plug is on,
 # and the climate control 600 W while its signal is recommended, 2100 W when
 # forced. "Dev extra export" nudges the meter by hand on top.
+#
+# The energy dashboard is set up with these meters, so Solar Surplus reads its
+# inputs from there: grid power, battery power, charge and capacity, and the
+# forecast. Their energy comes from the power by integration. Fourteen days of
+# a made-up house are imported into the statistics the first time, so the
+# base load is learned from the start.
 
 input_number:
   dev_solar_peak:
@@ -159,3 +165,69 @@ template:
         device_class: battery
         state_class: measurement
         state: "{{ states('input_number.dev_battery_soc') }}"
+      - name: Dev grid import power
+        unique_id: dev_grid_import_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: "{{ [states('sensor.dev_grid') | float(0), 0] | max }}"
+      - name: Dev grid export power
+        unique_id: dev_grid_export_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: "{{ [-(states('sensor.dev_grid') | float(0)), 0] | max }}"
+      - name: Dev battery discharge power
+        unique_id: dev_battery_discharge_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: "{{ [states('sensor.dev_battery') | float(0), 0] | max }}"
+      - name: Dev battery charge power
+        unique_id: dev_battery_charge_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: "{{ [-(states('sensor.dev_battery') | float(0)), 0] | max }}"
+
+sensor:
+  - platform: integration
+    name: Dev solar energy
+    unique_id: dev_solar_energy
+    source: sensor.dev_solar_power
+    unit_prefix: k
+    method: left
+    round: 3
+    max_sub_interval: "00:01:00"
+  - platform: integration
+    name: Dev grid import energy
+    unique_id: dev_grid_import_energy
+    source: sensor.dev_grid_import_power
+    unit_prefix: k
+    method: left
+    round: 3
+    max_sub_interval: "00:01:00"
+  - platform: integration
+    name: Dev grid export energy
+    unique_id: dev_grid_export_energy
+    source: sensor.dev_grid_export_power
+    unit_prefix: k
+    method: left
+    round: 3
+    max_sub_interval: "00:01:00"
+  - platform: integration
+    name: Dev battery discharge energy
+    unique_id: dev_battery_discharge_energy
+    source: sensor.dev_battery_discharge_power
+    unit_prefix: k
+    method: left
+    round: 3
+    max_sub_interval: "00:01:00"
+  - platform: integration
+    name: Dev battery charge energy
+    unique_id: dev_battery_charge_energy
+    source: sensor.dev_battery_charge_power
+    unit_prefix: k
+    method: left
+    round: 3
+    max_sub_interval: "00:01:00"

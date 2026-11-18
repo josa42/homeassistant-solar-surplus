@@ -368,10 +368,15 @@ make dev-reset  # forget it, so the next make dev starts from scratch
 ```
 
 `make dev` runs Home Assistant from the venv and sets it up on its first start:
-user `dev` with password `dev`, a simulated solar array with a forecast, and
-Solar Surplus with five test consumers, one of each kind but scripts (a heating
-rod, an SG Ready heat pump, a climate control following a signal, a wallbox and
-a washer). Code changes need a restart: stop it with Ctrl+C and run it again.
+user `dev` with password `dev`, a simulated solar array with a forecast, the
+energy dashboard over the simulated meters, and Solar Surplus with five test
+consumers, one of each kind but scripts (a heating rod, an SG Ready heat pump,
+a climate control following a signal, a wallbox and a washer). Solar Surplus
+is given none of the meters: grid, battery, charge, capacity and forecast all
+come from the energy dashboard. Fourteen days of a made-up house go into the
+dashboard's statistics, so the base load is learned from the start. Code
+changes need a restart: stop it with Ctrl+C and run it again. An instance set
+up before this needs `make dev-reset` to get the energy dashboard.
 
 The house is simulated in `config.template.yaml`, which `make dev` copies over
 every time:
