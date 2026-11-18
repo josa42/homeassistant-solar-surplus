@@ -146,7 +146,7 @@ def _observe(consumer: ConsumerInput, memory: ConsumerMemory, now: datetime) -> 
         memory.pending_since = None
 
 
-def _power_now(consumer: ConsumerInput) -> float:
+def drawn(consumer: ConsumerInput) -> float:
     """What a consumer draws: measured if it can be, else what it should."""
     reading = consumer.reading
     if consumer.spec.has_power_sensor and reading.power is not None:
@@ -178,7 +178,7 @@ def _surplus(
     """What could be handed out right now, before smoothing."""
     settings = inputs.settings
     own = sum(
-        _power_now(consumer)
+        drawn(consumer)
         for consumer in consumers
         if _is_drawing(consumer, memory.consumer(consumer.spec.id))
     )
@@ -380,7 +380,7 @@ def _on_off(
 ) -> ConsumerDecision:
     """A consumer that is either on or off: a switch or a pair of scripts."""
     need = consumer.spec.power
-    power_now = _power_now(consumer)
+    power_now = drawn(consumer)
     fits = budget >= need
     # The reserve is the hysteresis: switched on, it leaves at least the reserve
     # exported; it is only switched off once the house draws from the grid.
@@ -469,7 +469,7 @@ def _sg_ready(
     spec = consumer.spec
     now = inputs.now
     need = spec.power
-    power_now = _power_now(consumer)
+    power_now = drawn(consumer)
     fits = budget >= need
     # Forced, it may drop to recommended rather than off.
     holds = budget + inputs.settings.reserve >= min(power_now, need)
@@ -737,7 +737,7 @@ def _deferrable_running(
         consumer,
         ConsumerState.RUNNING,
         Reason.RUNNING,
-        power=_power_now(consumer),
+        power=drawn(consumer),
         details=details,
     )
 
