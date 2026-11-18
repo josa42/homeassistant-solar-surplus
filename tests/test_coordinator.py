@@ -26,12 +26,10 @@ from custom_components.solar_surplus.const import (
     CONF_SG_CONTACT_2,
     CONF_START_ENTITY,
     CONF_STATE_ENTITY,
-    SIGNAL_ID,
     STORAGE_KEY,
     AdapterType,
     ConsumerState,
     DeferrablePhase,
-    EnergySignal,
     Override,
     Reason,
 )
@@ -160,7 +158,6 @@ async def test_without_a_grid_reading_nothing_changes(
 
     assert on(hass, HEATING_ROD)
     assert coordinator.data.consumers[0].reason is Reason.NO_DATA
-    assert coordinator.data.signal.state is None
 
 
 async def test_meters_are_read_in_any_sign_and_unit(
@@ -309,7 +306,7 @@ async def test_the_order_and_the_hands_come_from_the_store(
         "minor_version": 1,
         "key": STORAGE_KEY,
         "data": {
-            "order": [pump, SIGNAL_ID, rod, "gone"],
+            "order": [pump, "energy_signal", rod, "gone"],
             "overrides": {rod: "off", "gone": "on"},
         },
     }
@@ -317,13 +314,10 @@ async def test_the_order_and_the_hands_come_from_the_store(
     coordinator = await setup_entry(entry)
     await coordinator.async_refresh()
 
-    assert coordinator.data.order == [pump, SIGNAL_ID, rod]
+    assert coordinator.data.order == [pump, rod], "the old energy signal is gone"
     assert coordinator.store.overrides == {rod: Override.OFF}
     assert on(hass, "input_boolean.pool_pump")
     assert not on(hass, HEATING_ROD)
-    assert coordinator.data.signal.state is EnergySignal.FORCED, (
-        "2500 W left after the pump"
-    )
 
 
 async def test_changing_a_hand_runs_again(
@@ -342,9 +336,9 @@ async def test_unloading_keeps_what_was_remembered(
 ) -> None:
     coordinator = await setup_entry(entry)
     rod = next(iter(entry.subentries))
-    coordinator.store.async_set_order([rod, SIGNAL_ID])
+    coordinator.store.async_set_order([rod])
     assert await hass.config_entries.async_unload(entry.entry_id)
-    assert hass_storage[STORAGE_KEY]["data"]["order"] == [rod, SIGNAL_ID]
+    assert hass_storage[STORAGE_KEY]["data"]["order"] == [rod]
 
 
 async def test_adding_a_consumer_reloads(

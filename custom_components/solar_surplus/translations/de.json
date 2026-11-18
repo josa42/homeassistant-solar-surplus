@@ -13,6 +13,7 @@
           "battery_target_soc": "Batterie zuerst bis",
           "battery_min_soc": "Batterie gilt als leer bei",
           "battery_max_charge_power": "Maximale Ladeleistung der Batterie",
+          "signal_blocked": "Gesperrt ab Netzbezug von",
           "forecast_entries": "Solarprognose",
           "reserve": "Reserve",
           "base_load": "Grundlast"
@@ -22,8 +23,9 @@
           "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie entlädt, wie im Energie-Dashboard. Wechselrichter zählen unterschiedlich: Ohne Sonne und ohne Netzbezug entlädt die Batterie, daran lässt sich die Richtung des Sensors ablesen.",
           "battery_soc": "Optional. Ohne ihn wird die Ladeleistung der Batterie nie verteilt.",
           "battery_target_soc": "Unter diesem Ladestand wird die Ladeleistung der Batterie nicht an Verbraucher verteilt.",
-          "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug das Energiesignal.",
+          "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug SG-Ready-Wärmepumpen und Signale.",
           "battery_max_charge_power": "Optional. Ist sie bekannt, wird der Teil, den die Batterie noch nicht nutzt, für sie zurückgehalten, solange sie unter dem Ladestand oben ist.",
+          "signal_blocked": "Bei leerer oder ohne Batterie sperrt so viel Netzbezug SG-Ready-Wärmepumpen und Signale.",
           "forecast_entries": "Optional. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
           "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
           "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert."
@@ -40,7 +42,6 @@
         "title": "Solarüberschuss",
         "menu_options": {
           "inputs": "Zähler und Prognose",
-          "energy_signal": "Energiesignal",
           "test_mode": "Testmodus"
         }
       },
@@ -55,6 +56,7 @@
           "battery_target_soc": "Batterie zuerst bis",
           "battery_min_soc": "Batterie gilt als leer bei",
           "battery_max_charge_power": "Maximale Ladeleistung der Batterie",
+          "signal_blocked": "Gesperrt ab Netzbezug von",
           "forecast_entries": "Solarprognose",
           "reserve": "Reserve",
           "base_load": "Grundlast"
@@ -64,31 +66,12 @@
           "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie entlädt, wie im Energie-Dashboard. Wechselrichter zählen unterschiedlich: Ohne Sonne und ohne Netzbezug entlädt die Batterie, daran lässt sich die Richtung des Sensors ablesen.",
           "battery_soc": "Optional. Ohne ihn wird die Ladeleistung der Batterie nie verteilt.",
           "battery_target_soc": "Unter diesem Ladestand wird die Ladeleistung der Batterie nicht an Verbraucher verteilt.",
-          "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug das Energiesignal.",
+          "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug SG-Ready-Wärmepumpen und Signale.",
           "battery_max_charge_power": "Optional. Ist sie bekannt, wird der Teil, den die Batterie noch nicht nutzt, für sie zurückgehalten, solange sie unter dem Ladestand oben ist.",
+          "signal_blocked": "Bei leerer oder ohne Batterie sperrt so viel Netzbezug SG-Ready-Wärmepumpen und Signale.",
           "forecast_entries": "Optional. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
           "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
           "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert."
-        }
-      },
-      "energy_signal": {
-        "title": "Energiesignal",
-        "description": "Ein Sensor, dem andere Integrationen folgen können, nach den SG-Ready-Zuständen: gesperrt, normal, empfohlen und erzwungen.",
-        "data": {
-          "signal_recommended": "Empfohlen ab",
-          "signal_forced": "Erzwungen ab",
-          "signal_forced_soc": "Erzwungen bei Batterie ab",
-          "signal_blocked": "Gesperrt ab Netzbezug von",
-          "signal_rise_delay": "Steigen nach",
-          "signal_fall_delay": "Fallen nach",
-          "signal_min_dwell": "Jeden Zustand mindestens halten",
-          "signal_followers": "Leistung der Verbraucher, die dem Signal folgen"
-        },
-        "data_description": {
-          "signal_recommended": "Überschuss, der am Platz des Signals in der Reihenfolge übrig ist.",
-          "signal_forced_soc": "Ist die Batterie so voll, wird ein empfohlener Überschuss zu erzwungen.",
-          "signal_blocked": "Nur solange die Batterie leer ist oder keine vorhanden ist.",
-          "signal_followers": "Optional. Ihr Verbrauch wird zurückgerechnet, damit sich das Signal nicht selbst abschaltet, wenn sie darauf reagieren."
         }
       },
       "test_mode": {
@@ -239,6 +222,29 @@
             "finish_power": "Mit Leistungssensor ist der Lauf fertig, sobald sie so lange wie unten weniger verbraucht. Ohne, sobald die Laufzeit vorbei ist.",
             "turn_off_when_done": "Nur bei einem Schalter."
           }
+        },
+        "signal": {
+          "title": "Energiesignal",
+          "description": "Schaltet nichts. Ein eigener Sensor sagt gesperrt, normal, empfohlen oder erzwungen, nach den SG-Ready-Zuständen, und eine andere Integration folgt ihm, etwa die Klimasteuerung einer Wärmepumpe.",
+          "data": {
+            "name": "Name",
+            "power": "Leistung",
+            "power_sensor": "Leistungssensor",
+            "sg_forced_power": "Erzwungen ab zusätzlich",
+            "sg_lock": "Bei Netzbezug sperren",
+            "min_on_time": "Mindestlaufzeit",
+            "min_off_time": "Mindestpause",
+            "on_delay": "Einschalten nach",
+            "off_delay": "Ausschalten nach"
+          },
+          "data_description": {
+            "on_delay": "Wie lange genug Überschuss anliegen muss.",
+            "off_delay": "Wie lange zu wenig Überschuss anliegen muss.",
+            "power": "Was der Verbraucher, der ihm folgt, im Zustand empfohlen zusätzlich verbraucht.",
+            "power_sensor": "Optional. Was der Verbraucher, der ihm folgt, wirklich verbraucht. Das zählt dann als Verbrauch des Signals, damit es sich nicht selbst abschaltet, wenn er reagiert.",
+            "sg_forced_power": "Optional. Überschuss über die eigene Leistung hinaus, der es auf erzwungen setzt. Leer wird es nie erzwungen.",
+            "sg_lock": "Nur solange die Batterie leer ist, dann so lange wie nötig."
+          }
         }
       },
       "error": {
@@ -258,7 +264,8 @@
         "number": "Variabler Verbraucher",
         "sg_ready": "SG-Ready-Wärmepumpe",
         "script": "Verbraucher über Skripte",
-        "deferrable": "Aufschiebbarer Verbraucher"
+        "deferrable": "Aufschiebbarer Verbraucher",
+        "signal": "Energiesignal"
       }
     }
   },
@@ -286,24 +293,6 @@
           "normal": "Normal",
           "recommended": "Empfohlen",
           "forced": "Erzwungen"
-        },
-        "state_attributes": {
-          "reason": {
-            "name": "Grund",
-            "state": {
-              "pv_surplus": "Solarüberschuss",
-              "battery_full": "Batterie voll",
-              "grid_import": "Netzbezug",
-              "low_battery": "Batterie leer",
-              "none": "Keiner"
-            }
-          },
-          "since": {
-            "name": "Seit"
-          },
-          "until": {
-            "name": "Bis"
-          }
         }
       },
       "status": {

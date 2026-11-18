@@ -27,8 +27,6 @@ from custom_components.solar_surplus.const import (
     CONF_RESERVE,
     CONF_SG_CONTACT_1,
     CONF_SG_CONTACT_2,
-    CONF_SIGNAL_FOLLOWERS,
-    CONF_SIGNAL_RECOMMENDED,
     CONF_START_ENTITY,
     CONF_SWITCH_ENTITY,
     DOMAIN,
@@ -104,27 +102,6 @@ async def test_clearing_an_option_removes_it(hass: HomeAssistant) -> None:
     assert CONF_BATTERY_POWER not in values
 
 
-async def test_changing_the_energy_signal(
-    hass: HomeAssistant, entry: MockConfigEntry
-) -> None:
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"next_step_id": "energy_signal"}
-    )
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {
-            CONF_SIGNAL_RECOMMENDED: 800,
-            CONF_SIGNAL_FOLLOWERS: ["sensor.heat_pump_power"],
-        },
-    )
-
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options[CONF_SIGNAL_RECOMMENDED] == 800
-    assert entry.options[CONF_SIGNAL_FOLLOWERS] == ["sensor.heat_pump_power"]
-    assert entry.data[CONF_GRID_POWER] == GRID, "the meters are left alone"
-
-
 async def _add(
     hass: HomeAssistant,
     entry: MockConfigEntry,
@@ -166,6 +143,7 @@ async def _add(
                 CONF_START_ENTITY: "switch.washer",
             },
         ),
+        (AdapterType.SIGNAL, {}),
     ],
 )
 async def test_adding_a_consumer_of_each_kind(

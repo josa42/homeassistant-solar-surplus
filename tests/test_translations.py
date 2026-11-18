@@ -17,7 +17,6 @@ from custom_components.solar_surplus.config_flow import (
     adapter_schema,
     hub_schema,
     notify_schema,
-    signal_schema,
 )
 from custom_components.solar_surplus.const import (
     AdapterType,
@@ -25,7 +24,6 @@ from custom_components.solar_surplus.const import (
     EnergySignal,
     Override,
     Reason,
-    SignalReason,
 )
 
 BASE = Path("custom_components/solar_surplus")
@@ -85,7 +83,6 @@ def test_every_form_field_has_a_label(language: str) -> None:
     forms = [
         (hub_schema({}, FORECAST_OPTIONS), data["config"]["step"]["user"]["data"]),
         (hub_schema({}, FORECAST_OPTIONS), data["options"]["step"]["inputs"]["data"]),
-        (signal_schema({}), data["options"]["step"]["energy_signal"]["data"]),
         (notify_schema({}, []), data["options"]["step"]["test_mode"]["data"]),
         (adapter_schema(), subentry_steps["user"]["data"]),
     ]
@@ -108,9 +105,6 @@ def test_every_state_and_reason_can_be_shown(language: str) -> None:
     }
     signal = data["sensor"]["energy_signal"]
     assert set(signal["state"]) == {state.value for state in EnergySignal}
-    assert set(signal["state_attributes"]["reason"]["state"]) == {
-        reason.value for reason in SignalReason
-    }
     assert set(data["select"]["override"]["state"]) == {
         override.value for override in Override
     }

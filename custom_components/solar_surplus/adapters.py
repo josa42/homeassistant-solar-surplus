@@ -115,6 +115,7 @@ def build_adapter(
         AdapterType.SG_READY: SgReadyAdapter,
         AdapterType.SCRIPT: ScriptAdapter,
         AdapterType.DEFERRABLE: DeferrableAdapter,
+        AdapterType.SIGNAL: SignalAdapter,
     }[spec.adapter]
     return adapter(hass, spec, data)
 
@@ -505,3 +506,27 @@ class DeferrableAdapter(Adapter):
             if ready_id.startswith("input_boolean."):
                 # Done is done: the next run is marked ready again by hand.
                 await self._switch(ready_id, False)
+
+
+class SignalAdapter(Adapter):
+    """An energy signal that another integration follows. Nothing is switched.
+
+    The state it tells is remembered rather than read from an entity: its own
+    sensor shows it, and that sensor shows what is remembered here.
+    """
+
+    def read(self, memory: ConsumerMemory, now: datetime) -> ConsumerReading:
+        return ConsumerReading(
+            active=memory.signal >= SgState.RECOMMENDED,
+            level=memory.signal,
+            power=self.power(),
+        )
+
+    async def async_apply(
+        self,
+        decision: ConsumerDecision,
+        reading: ConsumerReading,
+        memory: ConsumerMemory,
+    ) -> None:
+        if decision.target_level is not None:
+            memory.signal = int(decision.target_level)

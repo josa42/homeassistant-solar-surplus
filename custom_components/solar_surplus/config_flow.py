@@ -1,4 +1,4 @@
-"""Config flow: the house's meters, the energy signal, and each consumer."""
+"""Config flow: the house's meters, test mode, and each consumer."""
 
 from __future__ import annotations
 
@@ -54,13 +54,6 @@ from .const import (
     CONF_SG_FORCED_POWER,
     CONF_SG_LOCK,
     CONF_SIGNAL_BLOCKED,
-    CONF_SIGNAL_FALL_DELAY,
-    CONF_SIGNAL_FOLLOWERS,
-    CONF_SIGNAL_FORCED,
-    CONF_SIGNAL_FORCED_SOC,
-    CONF_SIGNAL_MIN_DWELL,
-    CONF_SIGNAL_RECOMMENDED,
-    CONF_SIGNAL_RISE_DELAY,
     CONF_START_ENTITY,
     CONF_STATE_ENTITY,
     CONF_SWITCH_ENTITY,
@@ -81,12 +74,6 @@ from .const import (
     DEFAULT_RESERVE,
     DEFAULT_RUN_TIME,
     DEFAULT_SIGNAL_BLOCKED,
-    DEFAULT_SIGNAL_FALL_DELAY,
-    DEFAULT_SIGNAL_FORCED,
-    DEFAULT_SIGNAL_FORCED_SOC,
-    DEFAULT_SIGNAL_MIN_DWELL,
-    DEFAULT_SIGNAL_RECOMMENDED,
-    DEFAULT_SIGNAL_RISE_DELAY,
     DEFAULT_WATTS_PER_UNIT,
     DOMAIN,
     SUBENTRY_TYPE_CONSUMER,
@@ -104,20 +91,10 @@ HUB_KEYS = (
     CONF_BATTERY_TARGET_SOC,
     CONF_BATTERY_MIN_SOC,
     CONF_BATTERY_MAX_CHARGE,
+    CONF_SIGNAL_BLOCKED,
     CONF_FORECAST_ENTRIES,
     CONF_RESERVE,
     CONF_BASE_LOAD,
-)
-
-SIGNAL_KEYS = (
-    CONF_SIGNAL_RECOMMENDED,
-    CONF_SIGNAL_FORCED,
-    CONF_SIGNAL_FORCED_SOC,
-    CONF_SIGNAL_BLOCKED,
-    CONF_SIGNAL_RISE_DELAY,
-    CONF_SIGNAL_FALL_DELAY,
-    CONF_SIGNAL_MIN_DWELL,
-    CONF_SIGNAL_FOLLOWERS,
 )
 
 #: The entities a consumer is switched through. Two consumers on one entity
@@ -212,6 +189,7 @@ def hub_schema(
             "%", 100
         ),
         _suggest(CONF_BATTERY_MAX_CHARGE, values): _watts(),
+        _default(CONF_SIGNAL_BLOCKED, values, DEFAULT_SIGNAL_BLOCKED): _watts(),
     }
     if forecast_options:
         fields[_suggest(CONF_FORECAST_ENTRIES, values)] = selector.SelectSelector(
@@ -224,34 +202,6 @@ def hub_schema(
     fields[_default(CONF_RESERVE, values, DEFAULT_RESERVE)] = _watts(10000)
     fields[_default(CONF_BASE_LOAD, values, DEFAULT_BASE_LOAD)] = _watts(10000)
     return vol.Schema(fields)
-
-
-def signal_schema(values: dict[str, Any]) -> vol.Schema:
-    """When the energy signal says what."""
-    return vol.Schema(
-        {
-            _default(
-                CONF_SIGNAL_RECOMMENDED, values, DEFAULT_SIGNAL_RECOMMENDED
-            ): _watts(),
-            _default(CONF_SIGNAL_FORCED, values, DEFAULT_SIGNAL_FORCED): _watts(),
-            _default(
-                CONF_SIGNAL_FORCED_SOC, values, DEFAULT_SIGNAL_FORCED_SOC
-            ): _number("%", 100),
-            _default(CONF_SIGNAL_BLOCKED, values, DEFAULT_SIGNAL_BLOCKED): _watts(),
-            _default(
-                CONF_SIGNAL_RISE_DELAY, values, DEFAULT_SIGNAL_RISE_DELAY
-            ): _number("s", 3600),
-            _default(
-                CONF_SIGNAL_FALL_DELAY, values, DEFAULT_SIGNAL_FALL_DELAY
-            ): _number("s", 3600),
-            _default(CONF_SIGNAL_MIN_DWELL, values, DEFAULT_SIGNAL_MIN_DWELL): _number(
-                "min", 240
-            ),
-            _suggest(CONF_SIGNAL_FOLLOWERS, values): _entity(
-                "sensor", "power", multiple=True
-            ),
-        }
-    )
 
 
 def notify_schema(
@@ -391,12 +341,25 @@ def deferrable_schema(values: dict[str, Any]) -> vol.Schema:
     )
 
 
+def signal_schema(values: dict[str, Any]) -> vol.Schema:
+    """An energy signal that another integration follows, such as a heat pump's."""
+    return vol.Schema(
+        {
+            **_consumer_head(values),
+            _suggest(CONF_SG_FORCED_POWER, values): _watts(),
+            _default(CONF_SG_LOCK, values, True): _bool(),
+            **_timings(values),
+        }
+    )
+
+
 CONSUMER_SCHEMAS = {
     AdapterType.SWITCH: switch_schema,
     AdapterType.NUMBER: number_schema,
     AdapterType.SG_READY: sg_ready_schema,
     AdapterType.SCRIPT: script_schema,
     AdapterType.DEFERRABLE: deferrable_schema,
+    AdapterType.SIGNAL: signal_schema,
 }
 
 
@@ -491,13 +454,13 @@ class SolarSurplusConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class SolarSurplusOptionsFlow(OptionsFlow):
-    """Change the meters or the energy signal after setup."""
+    """Change the meters or test mode after setup."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         return self.async_show_menu(
-            step_id="init", menu_options=["inputs", "energy_signal", "test_mode"]
+            step_id="init", menu_options=["inputs", "test_mode"]
         )
 
     def _values(self) -> dict[str, Any]:
@@ -535,16 +498,6 @@ class SolarSurplusOptionsFlow(OptionsFlow):
         options = await forecast_entry_options(self.hass)
         return self.async_show_form(
             step_id="inputs", data_schema=hub_schema(self._values(), options)
-        )
-
-    async def async_step_energy_signal(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """The thresholds and timings of the energy signal."""
-        if user_input is not None:
-            return self._save(user_input, SIGNAL_KEYS)
-        return self.async_show_form(
-            step_id="energy_signal", data_schema=signal_schema(self._values())
         )
 
     async def async_step_test_mode(
@@ -604,6 +557,11 @@ class ConsumerSubentryFlow(ConfigSubentryFlow):
         return await self._async_step_adapter(user_input)
 
     async def async_step_deferrable(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        return await self._async_step_adapter(user_input)
+
+    async def async_step_signal(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         return await self._async_step_adapter(user_input)

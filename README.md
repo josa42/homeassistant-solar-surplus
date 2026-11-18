@@ -43,8 +43,7 @@ The button above does this for you. Without it:
 3. Choose the grid power sensor, and the battery and forecast if you have them
 4. Add each consumer through **Add a consumer** on the integration's page
 
-The meters, the energy signal and where test mode sends its notifications can be
-changed later under **Configure**, each consumer under its own **Change this
+The meters and where test mode sends its notifications can be changed later under **Configure**, each consumer under its own **Change this
 consumer**.
 
 ### The house
@@ -55,8 +54,9 @@ consumer**.
 | Battery power | | Optional. Positive means the battery discharges, as in the energy dashboard. Inverters differ: turn off *Battery power is positive when discharging* if yours counts charging as positive. With no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts. |
 | Battery charge | | Optional. The battery's state of charge. |
 | Battery first up to | 90 % | Below this charge, what the battery charges with is not handed out. |
-| Battery counts as empty at | 20 % | At or below this, drawing from the grid blocks the energy signal. |
+| Battery counts as empty at | 20 % | At or below this, drawing from the grid locks SG Ready heat pumps and blocks signals. |
 | Battery maximum charge power | | Optional. Known, the part of it the battery does not use yet is held back for it while it is below *Battery first up to*. |
+| Blocked from grid import of | 500 W | Drawing this much from the grid with the battery empty, or without one, locks SG Ready heat pumps and blocks signals, if they are allowed to be. |
 | Solar forecast | | Optional. One or more config entries that provide a solar forecast for the energy dashboard. Several are added up. |
 | Reserve | 100 W | Held back from the surplus. It is also the hysteresis: a consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid. |
 | Base load | 400 W | What the house draws on its own. The expected surplus of an hour is its forecast minus this and the reserve. |
@@ -76,6 +76,7 @@ thermostat has cut out.
 | SG Ready | two contacts, as `switch` or `input_boolean` | a heat pump |
 | Scripts | a `script`, `button`, `input_button` or `scene` each for on and off, optionally an entity that says whether it is on | an air conditioner, anything with an API |
 | Deferrable | a ready entity and a start entity | a washing machine, a dryer, a dishwasher |
+| Signal | nothing: a sensor of its own that another integration follows | a heat pump's climate control |
 
 All but the deferrable kind have the same four timings:
 
@@ -95,6 +96,13 @@ current, needs its *Enable switch*: it is what turns the consumer off.
 An **SG Ready** heat pump's power is what it draws when recommended. *Forced from
 additional* is the surplus beyond that which makes it forced; left empty it is
 never forced. *Lock while drawing from the grid* allows the lock (state 1).
+
+A **signal** switches nothing. It is decided like an SG Ready heat pump, and
+what it would set is published as `sensor.<consumer>_energy_signal`, for an
+integration that reacts to it as the heat pump would, see [Signals](#signals).
+Its power is what the consumer following it draws extra when recommended, and
+its power sensor what that consumer really draws. *Blocked while drawing from
+the grid* is on by default.
 
 A **deferrable** consumer has its own settings:
 
@@ -125,7 +133,6 @@ The hub's device:
 | `sensor.solar_surplus_remaining_surplus` | What is left after them |
 | `sensor.solar_surplus_forecast_remaining_today` | The solar energy still expected today (only with a forecast) |
 | `sensor.solar_surplus_forecast_power` | The solar power the forecast expects right now (only with a forecast) |
-| `sensor.solar_surplus_energy_signal` | The energy signal, see below |
 | `switch.solar_surplus_control` | Off, every decision is still made and shown, but nothing is switched. It keeps its state across a restart. |
 | `switch.solar_surplus_test_mode` | On, nothing is switched, and what would be is sent as a notification. See [Test mode](#test-mode). It keeps its state across a restart. |
 
@@ -135,37 +142,29 @@ Each consumer gets a device of its own:
 | --- | --- |
 | `sensor.<consumer>_status` | `off`, `on`, `locked`, `waiting`, `running`, `done`, `idle` (not ready) or `unavailable`. The `reason` attribute says why, the others give the figures behind it: the power `needed`, the surplus `available` at its place in the order, `until` when a delay or minimum time runs out, and for a deferrable consumer its `deadline`, `latest_start` and `expected_start`. |
 | `select.<consumer>_mode` | `auto` lets the allocation decide, `on` and `off` put a hand on it. |
+| `sensor.<consumer>_energy_signal` | Only for a signal: what it tells, see below. |
 
-### Energy signal
+### Signals
 
-`sensor.solar_surplus_energy_signal` is meant for other integrations to follow,
-such as a climate controller that heats a little more while there is surplus.
-It is an enum sensor after the SG Ready states 1 to 4, with text states so it is
-not taken for a measurement:
+A signal is a consumer that switches nothing. Its
+`sensor.<consumer>_energy_signal` is meant for another integration to follow,
+such as the climate control of a heat pump, which heats a little more while
+there is surplus. It is an enum sensor after the SG Ready states 1 to 4, with
+text states so it is not taken for a measurement:
 
 | State | SG Ready | When |
 | --- | --- | --- |
-| `blocked` | 1 | The house draws at least *Blocked from grid import of* (500 W) and the battery is empty or there is none. Consumers should use only what is necessary. |
+| `blocked` | 1 | The house draws at least *Blocked from grid import of* (500 W), the battery is empty or there is none, and *Blocked while drawing from the grid* is on. Use only what is necessary. |
 | `normal` | 2 | Anything else. |
-| `recommended` | 3 | At least *Recommended from* (500 W) is left. Extra consumption is welcome. |
-| `forced` | 4 | At least *Forced from* (2000 W) is left, or the recommended surplus with the battery at *Forced with the battery at* (95 %). Use whatever you can. |
+| `recommended` | 3 | Its power fits the surplus left at its place in the order. Extra consumption is welcome. |
+| `forced` | 4 | *Forced from additional* fits on top of that. Use whatever you can. |
 
-It sits in the priority order like a consumer, last unless it is moved in the
-panel: the consumers above it are served before it sees what is left, the ones
-below it after. It takes nothing away from them. The draw of the *consumers that
-follow the signal*, if their power sensors are given, is added back, so the
-signal does not switch itself off when they react to it.
-
-It rises after *Rise after* (120 s) and falls after *Fall after* (300 s), and
-holds each state at least *Hold each state at least* (10 min). Whoever follows it
-can take it at its word. Without a grid reading it is `unavailable` rather than
-a guess.
-
-Attributes: `reason` (`pv_surplus`, `battery_full`, `grid_import`,
-`low_battery` or `none`), `since`, and `until` while recommended or forced, when
-the forecast expects the surplus to end.
-
-These are set under **Configure** → **Energy signal**.
+Each signal sits in the priority order like any consumer, with its own power
+and its own timings, so two integrations that follow the surplus each get their
+own signal and their own place. What the consumer following it draws counts as
+the signal's own, from its power sensor or else its power, so the signal does
+not switch itself off once it is followed. Without a grid reading the sensor is
+`unavailable` rather than a guess. Test mode does not change it.
 
 ### Test mode
 
@@ -187,8 +186,8 @@ reading, so the next consumer does not get the same surplus a second time. The
 status sensors and the panel show the simulated house. Switching a consumer by
 hand is taken over. A variable consumer is reported when it turns on or off,
 not each time its power follows the surplus. A finished deferrable run counts
-its ready entity as off until it really goes off. Changes of the energy signal
-are reported too, while the sensor itself goes on being published.
+its ready entity as off until it really goes off. A signal is reported with
+what it would tell, and its sensor stays where it is.
 
 Notifications go to the notify action or entity set under **Configure** →
 **Test mode**, such as `notify.mobile_app_phone`. Without one, or if it does not
@@ -205,14 +204,13 @@ minimum times afresh.
 The integration adds **Solar Surplus** to the sidebar. It shows:
 
 - the surplus (smoothed, and what it is right now), the grid, the battery, what
-  is handed out and what is left, and the energy signal
+  is handed out and what is left
 - the forecast for the next hours as bars, against the line of base load and
   reserve that a forecast hour has to clear before it counts as surplus
 - every consumer in priority order, with what it is doing, why, and the figures
   behind it: the surplus it saw at its place, until when a delay or minimum time
   runs, and for a deferrable consumer by when it starts at the latest and by
-  when it is done
-- the energy signal at its place in the order
+  when it is done, and for a signal what it tells
 
 Admins can change the order by dragging a row or with its arrows, put a hand on
 a consumer (Auto, On, Off), and turn control and test mode on or off. Everyone
@@ -253,8 +251,10 @@ Each kind adds its own rules:
 - **SG Ready** heat pumps are *recommended* (state 3) when their power fits and
   *forced* (state 4) when the forced threshold fits on top. With *Lock while
   drawing from the grid* on, they are locked (state 1) while the house draws at
-  least the energy signal's blocked threshold with the battery empty, for at
-  most two hours at a time and with an hour's pause in between.
+  least *Blocked from grid import of* with the battery empty, for at most two
+  hours at a time and with an hour's pause in between.
+- **Signals** are decided the same way, but only publish what they would set.
+  They stay blocked for as long as the house draws from the grid.
 - **Scripts** run the on or the off entity. Without an entity that says whether
   the consumer is on, it counts as what it was last told.
 - **Deferrable** consumers wait until their ready entity is on. Then they start
@@ -282,7 +282,7 @@ remembered.
 ## Not in this version
 
 The allocation is greedy by priority, not an optimizer. There are no electricity
-prices or tariffs (so the energy signal has no `cheap_tariff` reason yet), no
+prices or tariffs, no
 electric vehicle charging logic beyond a variable consumer (evcc does that
 better), and consumers are added and changed on the integration's page, not in
 the panel.

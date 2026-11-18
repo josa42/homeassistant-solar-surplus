@@ -12,13 +12,12 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from custom_components.solar_surplus.const import (
-    SIGNAL_ID,
     AdapterType,
     DeferrablePhase,
     Override,
     SgState,
 )
-from custom_components.solar_surplus.engine import decide
+from custom_components.solar_surplus.engine import SG_KINDS, decide
 from custom_components.solar_surplus.models import (
     ConsumerInput,
     ConsumerReading,
@@ -77,7 +76,7 @@ class House:
 
     @staticmethod
     def _initial(consumer: ConsumerSpec) -> ConsumerReading:
-        if consumer.adapter is AdapterType.SG_READY:
+        if consumer.adapter in SG_KINDS:
             return ConsumerReading(level=SgState.NORMAL)
         if consumer.adapter is AdapterType.DEFERRABLE:
             return ConsumerReading(active=None)
@@ -94,7 +93,7 @@ class House:
             return consumer.power if running else 0
         if consumer.adapter is AdapterType.NUMBER:
             return reading.level if reading.active else 0
-        if consumer.adapter is AdapterType.SG_READY:
+        if consumer.adapter in SG_KINDS:
             if reading.level == SgState.FORCED:
                 return consumer.power + (consumer.forced_power or 0)
             return consumer.power if reading.level == SgState.RECOMMENDED else 0
@@ -111,7 +110,6 @@ class House:
         after: timedelta = timedelta(0),
         battery: float | None = None,
         soc: float | None = None,
-        followers: float = 0,
         forecast: tuple[ForecastPeriod, ...] = (),
         control: bool = True,
         grid: float | None | str = "derive",
@@ -127,7 +125,6 @@ class House:
             grid=grid,
             battery=battery,
             soc=soc,
-            followers=followers,
             forecast=forecast,
             control_enabled=control,
             settings=self.settings,
@@ -162,8 +159,3 @@ class House:
             if item.target_level is not None:
                 changes["level"] = item.target_level
             self.set(item.id, **changes)
-
-    def with_signal_at(self, index: int) -> None:
-        """Place the energy signal in the order."""
-        self.order = [i for i in self.order if i != SIGNAL_ID]
-        self.order.insert(index, SIGNAL_ID)

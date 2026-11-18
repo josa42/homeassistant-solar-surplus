@@ -6,15 +6,12 @@ import json
 from datetime import timedelta
 
 from custom_components.solar_surplus.const import (
-    SIGNAL_ID,
     AdapterType,
     ConsumerState,
     DeferrablePhase,
-    EnergySignal,
     Override,
     Reason,
     SgState,
-    SignalReason,
 )
 from custom_components.solar_surplus.engine import next_occurrence
 from custom_components.solar_surplus.models import ConsumerMemory, HubSettings
@@ -627,127 +624,65 @@ def test_a_hand_on_a_deferrable_consumer() -> None:
 
 
 ################################################################################
-# The energy signal
+# Signals
 ################################################################################
 
-SIGNAL_SETTINGS = HubSettings(
-    reserve=0,
-    signal_rise_delay=120 * SECONDS,
-    signal_fall_delay=300 * SECONDS,
-    signal_min_dwell=timedelta(0),
-)
+
+def signal(**kwargs):
+    return spec("signal", 1000, AdapterType.SIGNAL, **kwargs)
 
 
-def test_the_signal_starts_with_what_it_sees() -> None:
-    signal = House(settings=SIGNAL_SETTINGS).run(800).signal
-    assert signal.state is EnergySignal.RECOMMENDED
-    assert signal.reason is SignalReason.PV_SURPLUS
-    assert signal.since == T0
+def test_a_signal_is_decided_like_sg_ready() -> None:
+    house = House(signal(forced_power=1000))
+    s = house.run(1500).consumer("signal")
+    assert s.target_level == SgState.RECOMMENDED
+    assert s.state is ConsumerState.ON
+    assert house.run(2500).consumer("signal").target_level == SgState.FORCED
 
 
-def test_the_signal_rises_after_its_delay() -> None:
-    house = House(settings=SIGNAL_SETTINGS)
-    house.run(0)
-    signal = house.run(800, after=60 * SECONDS).signal
-    assert signal.state is EnergySignal.NORMAL
-    assert signal.pending is EnergySignal.RECOMMENDED
-    assert house.run(800, after=60 * SECONDS).signal.state is EnergySignal.NORMAL
-    assert house.run(800, after=60 * SECONDS).signal.state is EnergySignal.RECOMMENDED
-
-
-def test_the_signal_falls_after_its_delay() -> None:
-    house = House(settings=SIGNAL_SETTINGS)
-    house.run(800)
-    house.run(0, after=60 * SECONDS)
-    assert house.run(0, after=240 * SECONDS).signal.state is EnergySignal.RECOMMENDED
-    assert house.run(0, after=60 * SECONDS).signal.state is EnergySignal.NORMAL
-
-
-def test_the_signal_holds_each_state_for_its_minimum_time() -> None:
-    house = House(settings=HubSettings(reserve=0, signal_min_dwell=10 * MINUTES))
-    house.run(800)
-    house.run(0, after=MINUTES)
-    # Too little has held for longer than the fall delay, but not ten minutes
-    # have passed since the signal rose.
-    assert house.run(0, after=7 * MINUTES).signal.state is EnergySignal.RECOMMENDED
-    assert house.run(0, after=2 * MINUTES).signal.state is EnergySignal.NORMAL
-
-
-def test_the_signal_is_forced_with_plenty_of_surplus() -> None:
-    signal = House(settings=SIGNAL_SETTINGS).run(2500).signal
-    assert signal.state is EnergySignal.FORCED
-    assert signal.reason is SignalReason.PV_SURPLUS
-
-
-def test_the_signal_is_forced_with_the_battery_full() -> None:
-    signal = House(settings=SIGNAL_SETTINGS).run(800, battery=0, soc=97).signal
-    assert signal.state is EnergySignal.FORCED
-    assert signal.reason is SignalReason.BATTERY_FULL
-
-
-def test_the_signal_is_blocked_while_drawing_from_the_grid() -> None:
-    signal = House(settings=SIGNAL_SETTINGS).run(-800).signal
-    assert signal.state is EnergySignal.BLOCKED
-    assert signal.reason is SignalReason.GRID_IMPORT
-
-    signal = House(settings=SIGNAL_SETTINGS).run(-800, battery=0, soc=10).signal
-    assert signal.state is EnergySignal.BLOCKED
-    assert signal.reason is SignalReason.LOW_BATTERY
-
-    signal = House(settings=SIGNAL_SETTINGS).run(-800, battery=0, soc=50).signal
-    assert signal.state is EnergySignal.NORMAL, "the battery has charge to cover it"
-
-
-def test_what_the_followers_draw_is_added_back() -> None:
-    house = House(settings=SIGNAL_SETTINGS)
-    house.run(800)
-    # The heat pump followed the signal and now draws 600 W of it.
-    signal = house.run(200, after=10 * MINUTES, followers=600).signal
-    assert signal.state is EnergySignal.RECOMMENDED
-    assert signal.power == 800
-
-
-def test_the_signal_sees_what_is_left_at_its_place() -> None:
-    house = House(spec("rod", 1000), settings=SIGNAL_SETTINGS)
+def test_a_signal_sees_what_is_left_at_its_place() -> None:
+    house = House(spec("rod", 1000), signal())
     decision = house.run(1500)
-    assert decision.order == ["rod", SIGNAL_ID]
-    assert decision.signal.state is EnergySignal.RECOMMENDED, (
+    assert decision.consumer("rod").target_active is True
+    assert decision.consumer("signal").target_level == SgState.NORMAL, (
         "500 W are left after the rod"
     )
-    assert decision.signal.power == 500
 
-    house = House(spec("rod", 1000), settings=SIGNAL_SETTINGS)
+    house = House(signal(), spec("rod", 1000))
+    decision = house.run(1500)
+    assert decision.consumer("signal").target_level == SgState.RECOMMENDED
+    assert decision.consumer("rod").target_active is False, "first come, first served"
+
+
+def test_what_follows_a_signal_does_not_switch_it_off() -> None:
+    house = House(signal(has_power_sensor=True))
     house.run(1200)
-    assert house.run(1200).signal.state is EnergySignal.NORMAL, "200 W are left"
+    # The heat pump followed the signal and now draws 1100 W of the surplus.
+    house.measured["signal"] = 1100
+    assert house.run(1200).consumer("signal").target_level == SgState.RECOMMENDED
 
-    house = House(spec("rod", 1000), settings=SIGNAL_SETTINGS)
-    house.with_signal_at(0)
-    decision = house.run(1200)
-    assert decision.signal.state is EnergySignal.RECOMMENDED, (
-        "first, it sees everything"
-    )
-    assert decision.consumer("rod").target_active is True, "and takes nothing away"
+
+def test_a_signal_is_blocked_for_as_long_as_the_grid_is_drawn_from() -> None:
+    house = House(signal(lock=True))
+    s = house.run(-1000).consumer("signal")
+    assert s.target_level == SgState.LOCK
+    assert s.reason is Reason.GRID_IMPORT
+    s = house.run(-1000, after=3 * timedelta(hours=1)).consumer("signal")
+    assert s.target_level == SgState.LOCK, "unlike a heat pump, no two hour limit"
+
+    s = house.run(-1000, soc=80).consumer("signal")
+    assert s.target_level == SgState.NORMAL, "the battery covers it"
 
 
 def test_without_a_grid_reading_nothing_is_decided() -> None:
-    house = House(spec("rod", 1000), settings=SIGNAL_SETTINGS)
+    house = House(spec("rod", 1000))
     house.run(1500)
     decision = house.run(1500, grid=None)
-    assert decision.signal.state is None
     assert decision.surplus is None
     rod = decision.consumer("rod")
     assert rod.reason is Reason.NO_DATA
     assert rod.target_active is None
     assert rod.state is ConsumerState.ON
-
-
-def test_the_forecast_says_when_the_surplus_ends() -> None:
-    house = House(settings=SIGNAL_SETTINGS)
-    # Base load 400: 3000 W leave plenty, 700 W leave 300, under the 500 needed.
-    signal = house.run(2000, forecast=forecast(3000, 3000, 700)).signal
-    assert signal.until == T0 + timedelta(hours=2)
-
-    assert house.run(2000, forecast=forecast(3000, 3000)).signal.until is None
 
 
 ################################################################################
@@ -757,38 +692,44 @@ def test_the_forecast_says_when_the_surplus_ends() -> None:
 
 def test_a_new_consumer_joins_at_the_end() -> None:
     house = House(spec("a"), spec("b"), spec("c"))
-    house.order = ["b", SIGNAL_ID, "gone"]
-    assert house.run(0).order == ["b", SIGNAL_ID, "a", "c"]
+    house.order = ["b", "gone"]
+    assert house.run(0).order == ["b", "a", "c"]
 
     house.order = []
-    assert house.run(0).order == ["a", "b", "c", SIGNAL_ID]
+    assert house.run(0).order == ["a", "b", "c"]
 
 
 def test_a_run_survives_a_restart() -> None:
     memory = ConsumerMemory(
-        phase=DeferrablePhase.RUNNING, started_at=T0, commanded=True
+        phase=DeferrablePhase.RUNNING,
+        started_at=T0,
+        commanded=True,
+        signal=SgState.FORCED,
     )
     restored = ConsumerMemory.from_dict(json.loads(json.dumps(memory.to_dict())))
     assert restored.phase is DeferrablePhase.RUNNING
     assert restored.started_at == T0
     assert restored.commanded is True
+    assert restored.signal == SgState.FORCED
 
 
 def test_a_broken_memory_is_forgotten() -> None:
-    restored = ConsumerMemory.from_dict({"phase": "flying", "started_at": "yesterday"})
+    restored = ConsumerMemory.from_dict(
+        {"phase": "flying", "started_at": "yesterday", "signal": 7}
+    )
     assert restored.phase is DeferrablePhase.IDLE
+    assert restored.signal == SgState.NORMAL
     assert restored.started_at is None
     assert ConsumerMemory.from_dict(None).phase is DeferrablePhase.IDLE
 
 
 def test_a_decision_can_be_sent_as_json() -> None:
-    house = House(spec("rod", 1000), washer(), settings=SIGNAL_SETTINGS)
+    house = House(spec("rod", 1000), washer())
     house.set("washer", ready=True, deadline=DEADLINE, active=False)
     decision = house.run(2000, forecast=forecast(1000, 2000))
     data = json.loads(json.dumps(decision.to_dict()))
     assert data["consumers"][0]["state"] == "on"
     assert data["consumers"][1]["details"]["started_at"] == T0.isoformat()
-    assert data["signal"]["state"] == "recommended"
     assert data["forecast"][1]["watts"] == 2000
 
 

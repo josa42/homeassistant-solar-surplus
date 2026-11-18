@@ -16,7 +16,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DOMAIN, SIGNAL_ID, Override
+from .const import DOMAIN, Override
 from .coordinator import SIGNAL_UPDATE, SolarSurplusCoordinator
 
 
@@ -52,8 +52,6 @@ def panel_state(coordinator: SolarSurplusCoordinator) -> dict[str, Any]:
         "settings": {
             "reserve": settings.reserve,
             "base_load": settings.base_load,
-            "signal_recommended": settings.signal_recommended,
-            "signal_forced": settings.signal_forced,
         },
     }
 
@@ -133,8 +131,8 @@ async def handle_reorder(
     msg: dict,
     coordinator: SolarSurplusCoordinator,
 ) -> None:
-    """Set the priority order: consumer ids and the energy signal, first first."""
-    known = {*coordinator.consumers, SIGNAL_ID}
+    """Set the priority order: consumer ids, first first."""
+    known = set(coordinator.consumers)
     unknown = [item for item in msg["order"] if item not in known]
     if unknown:
         connection.send_error(

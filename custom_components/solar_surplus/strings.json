@@ -13,6 +13,7 @@
           "battery_target_soc": "Battery first up to",
           "battery_min_soc": "Battery counts as empty at",
           "battery_max_charge_power": "Battery maximum charge power",
+          "signal_blocked": "Blocked from grid import of",
           "forecast_entries": "Solar forecast",
           "reserve": "Reserve",
           "base_load": "Base load"
@@ -22,8 +23,9 @@
           "battery_power": "Optional. By default positive means the battery discharges, as in the energy dashboard. Inverters differ: with no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts.",
           "battery_soc": "Optional. Without it, what the battery charges with is never handed out.",
           "battery_target_soc": "Below this charge, what the battery charges with is not handed out to consumers.",
-          "battery_min_soc": "At or below this charge, drawing from the grid blocks the energy signal.",
+          "battery_min_soc": "At or below this charge, drawing from the grid locks SG Ready heat pumps and blocks signals.",
           "battery_max_charge_power": "Optional. Known, the part of it the battery does not use yet is held back for it while it is below the charge above.",
+          "signal_blocked": "With the battery empty or none, drawing this much from the grid locks SG Ready heat pumps and blocks signals.",
           "forecast_entries": "Optional. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
           "reserve": "Held back from the surplus. A consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid.",
           "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this."
@@ -40,7 +42,6 @@
         "title": "Solar Surplus",
         "menu_options": {
           "inputs": "Meters and forecast",
-          "energy_signal": "Energy signal",
           "test_mode": "Test mode"
         }
       },
@@ -55,6 +56,7 @@
           "battery_target_soc": "Battery first up to",
           "battery_min_soc": "Battery counts as empty at",
           "battery_max_charge_power": "Battery maximum charge power",
+          "signal_blocked": "Blocked from grid import of",
           "forecast_entries": "Solar forecast",
           "reserve": "Reserve",
           "base_load": "Base load"
@@ -64,31 +66,12 @@
           "battery_power": "Optional. By default positive means the battery discharges, as in the energy dashboard. Inverters differ: with no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts.",
           "battery_soc": "Optional. Without it, what the battery charges with is never handed out.",
           "battery_target_soc": "Below this charge, what the battery charges with is not handed out to consumers.",
-          "battery_min_soc": "At or below this charge, drawing from the grid blocks the energy signal.",
+          "battery_min_soc": "At or below this charge, drawing from the grid locks SG Ready heat pumps and blocks signals.",
           "battery_max_charge_power": "Optional. Known, the part of it the battery does not use yet is held back for it while it is below the charge above.",
+          "signal_blocked": "With the battery empty or none, drawing this much from the grid locks SG Ready heat pumps and blocks signals.",
           "forecast_entries": "Optional. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
           "reserve": "Held back from the surplus. A consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid.",
           "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this."
-        }
-      },
-      "energy_signal": {
-        "title": "Energy signal",
-        "description": "A sensor other integrations can follow, after the SG Ready states: blocked, normal, recommended and forced.",
-        "data": {
-          "signal_recommended": "Recommended from",
-          "signal_forced": "Forced from",
-          "signal_forced_soc": "Forced with the battery at",
-          "signal_blocked": "Blocked from grid import of",
-          "signal_rise_delay": "Rise after",
-          "signal_fall_delay": "Fall after",
-          "signal_min_dwell": "Hold each state at least",
-          "signal_followers": "Power of consumers that follow the signal"
-        },
-        "data_description": {
-          "signal_recommended": "Surplus left at the signal's place in the priority order.",
-          "signal_forced_soc": "With the battery this full, a recommended surplus is forced.",
-          "signal_blocked": "Only while the battery is empty or there is none.",
-          "signal_followers": "Optional. Their draw is added back, so the signal does not switch itself off when they react to it."
         }
       },
       "test_mode": {
@@ -239,6 +222,29 @@
             "finish_power": "With a power sensor, the run is done once it draws less than this for the time below. Without one, once the run time is over.",
             "turn_off_when_done": "Only for a switch."
           }
+        },
+        "signal": {
+          "title": "An energy signal",
+          "description": "Switches nothing. Its own sensor tells blocked, normal, recommended or forced, after the SG Ready states, for another integration to follow, such as the climate control of a heat pump.",
+          "data": {
+            "name": "Name",
+            "power": "Power",
+            "power_sensor": "Power sensor",
+            "sg_forced_power": "Forced from additional",
+            "sg_lock": "Blocked while drawing from the grid",
+            "min_on_time": "Minimum on time",
+            "min_off_time": "Minimum off time",
+            "on_delay": "Switch on after",
+            "off_delay": "Switch off after"
+          },
+          "data_description": {
+            "on_delay": "How long enough surplus has to hold.",
+            "off_delay": "How long too little surplus has to hold.",
+            "power": "What the consumer following it draws extra when recommended.",
+            "power_sensor": "Optional. What the consumer following it really draws. Its draw is then counted as the signal's own, so the signal does not switch itself off when it reacts.",
+            "sg_forced_power": "Optional. Surplus beyond its own power that makes it forced. Empty, it is never forced.",
+            "sg_lock": "Only while the battery is empty, for as long as that lasts."
+          }
         }
       },
       "error": {
@@ -258,7 +264,8 @@
         "number": "A variable consumer",
         "sg_ready": "An SG Ready heat pump",
         "script": "A consumer with scripts",
-        "deferrable": "A deferrable consumer"
+        "deferrable": "A deferrable consumer",
+        "signal": "An energy signal"
       }
     }
   },
@@ -286,24 +293,6 @@
           "normal": "Normal",
           "recommended": "Recommended",
           "forced": "Forced"
-        },
-        "state_attributes": {
-          "reason": {
-            "name": "Reason",
-            "state": {
-              "pv_surplus": "Solar surplus",
-              "battery_full": "Battery full",
-              "grid_import": "Drawing from the grid",
-              "low_battery": "Battery empty",
-              "none": "None"
-            }
-          },
-          "since": {
-            "name": "Since"
-          },
-          "until": {
-            "name": "Until"
-          }
         }
       },
       "status": {

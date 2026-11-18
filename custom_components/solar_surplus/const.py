@@ -11,11 +11,6 @@ TITLE: Final = "Solar Surplus"
 
 SUBENTRY_TYPE_CONSUMER: Final = "consumer"
 
-#: The id the energy signal takes in the priority order. It sits in the list
-#: like a consumer, so the consumers above it are served before the signal
-#: sees what is left, and the ones below it after.
-SIGNAL_ID: Final = "energy_signal"
-
 ################################################################################
 # Hub configuration
 ################################################################################
@@ -30,7 +25,8 @@ CONF_BATTERY_SOC: Final = "battery_soc"
 #: Below this charge the battery comes first: what it charges with is not
 #: handed out.
 CONF_BATTERY_TARGET_SOC: Final = "battery_target_soc"
-#: At or below this charge the battery counts as empty for the energy signal.
+#: At or below this charge the battery counts as empty: drawing from the grid
+#: then locks SG Ready heat pumps and blocks signals.
 CONF_BATTERY_MIN_SOC: Final = "battery_min_soc"
 #: How fast the battery can charge. Known, the part of it the battery does not
 #: use yet is held back while it is below its target, instead of a consumer
@@ -44,17 +40,9 @@ CONF_RESERVE: Final = "reserve"
 #: surplus of an hour is its forecast minus this.
 CONF_BASE_LOAD: Final = "base_load"
 
-CONF_SIGNAL_RECOMMENDED: Final = "signal_recommended"
-CONF_SIGNAL_FORCED: Final = "signal_forced"
-CONF_SIGNAL_FORCED_SOC: Final = "signal_forced_soc"
+#: From this much drawn from the grid, with the battery empty, SG Ready heat
+#: pumps may be locked and signals say blocked.
 CONF_SIGNAL_BLOCKED: Final = "signal_blocked"
-CONF_SIGNAL_RISE_DELAY: Final = "signal_rise_delay"
-CONF_SIGNAL_FALL_DELAY: Final = "signal_fall_delay"
-CONF_SIGNAL_MIN_DWELL: Final = "signal_min_dwell"
-#: Power sensors of consumers that follow the energy signal. Their draw is
-#: added back for the signal, which would otherwise switch itself off as soon
-#: as they react to it.
-CONF_SIGNAL_FOLLOWERS: Final = "signal_followers"
 #: Test mode: where to send what would have been switched. A `notify` action
 #: or entity; without one, a persistent notification.
 CONF_NOTIFY_TARGET: Final = "notify_target"
@@ -65,13 +53,7 @@ DEFAULT_BATTERY_TARGET_SOC: Final = 90
 DEFAULT_BATTERY_MIN_SOC: Final = 20
 DEFAULT_RESERVE: Final = 100
 DEFAULT_BASE_LOAD: Final = 400
-DEFAULT_SIGNAL_RECOMMENDED: Final = 500
-DEFAULT_SIGNAL_FORCED: Final = 2000
-DEFAULT_SIGNAL_FORCED_SOC: Final = 95
 DEFAULT_SIGNAL_BLOCKED: Final = 500
-DEFAULT_SIGNAL_RISE_DELAY: Final = 120
-DEFAULT_SIGNAL_FALL_DELAY: Final = 300
-DEFAULT_SIGNAL_MIN_DWELL: Final = 10
 
 ################################################################################
 # Consumer configuration
@@ -175,6 +157,9 @@ class AdapterType(StrEnum):
     SG_READY = "sg_ready"
     SCRIPT = "script"
     DEFERRABLE = "deferrable"
+    #: Switches nothing: an energy signal, after SG Ready 1 to 4, that
+    #: another integration follows.
+    SIGNAL = "signal"
 
 
 class Override(StrEnum):
@@ -232,22 +217,12 @@ class SgState(IntEnum):
 
 
 class EnergySignal(StrEnum):
-    """The energy signal other integrations read, after SG Ready 1 to 4."""
+    """What a signal consumer tells, after SG Ready 1 to 4."""
 
     BLOCKED = "blocked"
     NORMAL = "normal"
     RECOMMENDED = "recommended"
     FORCED = "forced"
-
-
-class SignalReason(StrEnum):
-    """Why the energy signal is what it is."""
-
-    PV_SURPLUS = "pv_surplus"
-    BATTERY_FULL = "battery_full"
-    GRID_IMPORT = "grid_import"
-    LOW_BATTERY = "low_battery"
-    NONE = "none"
 
 
 class DeferrablePhase(StrEnum):

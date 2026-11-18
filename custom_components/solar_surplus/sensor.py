@@ -1,4 +1,4 @@
-"""Sensors: the surplus, the forecast, the energy signal and each consumer's status."""
+"""Sensors: the surplus, the forecast, each consumer's status and the signals."""
 
 from __future__ import annotations
 
@@ -16,8 +16,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import ConsumerState, EnergySignal
-from .coordinator import Consumer, SolarSurplusConfigEntry, SolarSurplusCoordinator
+from .const import AdapterType, ConsumerState, EnergySignal, SgState
+from .coordinator import (
+    SG_STATE_NAMES,
+    Consumer,
+    SolarSurplusConfigEntry,
+    SolarSurplusCoordinator,
+)
 from .entity import ConsumerEntity, HubEntity
 from .forecast import power_now, remaining_today
 from .models import Decision
@@ -34,12 +39,12 @@ async def async_setup_entry(
     ]
     if coordinator.forecast.configured:
         hub += [ForecastRemainingSensor(coordinator), ForecastPowerSensor(coordinator)]
-    hub.append(EnergySignalSensor(coordinator))
     async_add_entities(hub)
     for consumer in coordinator.consumers.values():
-        async_add_entities(
-            [StatusSensor(coordinator, consumer)], config_subentry_id=consumer.id
-        )
+        entities: list[SensorEntity] = [StatusSensor(coordinator, consumer)]
+        if consumer.spec.adapter is AdapterType.SIGNAL:
+            entities.append(EnergySignalSensor(coordinator, consumer))
+        async_add_entities(entities, config_subentry_id=consumer.id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,45 +118,6 @@ class ForecastPowerSensor(HubEntity, SensorEntity):
         return None if value is None else round(value)
 
 
-class EnergySignalSensor(HubEntity, SensorEntity):
-    """The energy signal other integrations follow, after SG Ready 1 to 4.
-
-    Text states rather than numbers: a unitless number would be taken for a
-    measurement and drawn as a line. Without a grid reading it is unavailable
-    rather than a guess, and whoever follows it falls back to normal.
-    """
-
-    _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = [signal.value for signal in EnergySignal]
-
-    def __init__(self, coordinator: SolarSurplusCoordinator) -> None:
-        super().__init__(coordinator, "energy_signal")
-
-    @property
-    def available(self) -> bool:
-        data = self.coordinator.data
-        return super().available and data is not None and data.signal.state is not None
-
-    @property
-    def native_value(self) -> str | None:
-        data = self.coordinator.data
-        return data.signal.state.value if data and data.signal.state else None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        data = self.coordinator.data
-        if data is None or data.signal.state is None:
-            return {}
-        signal = data.signal
-        attributes: dict[str, Any] = {
-            "reason": signal.reason.value,
-            "since": signal.since.isoformat() if signal.since else None,
-        }
-        if signal.until is not None:
-            attributes["until"] = signal.until.isoformat()
-        return attributes
-
-
 class StatusSensor(ConsumerEntity, SensorEntity):
     """What a consumer is doing, and why."""
 
@@ -199,3 +165,32 @@ class StatusSensor(ConsumerEntity, SensorEntity):
                 value.isoformat() if hasattr(value, "isoformat") else value
             )
         return attributes
+
+
+class EnergySignalSensor(ConsumerEntity, SensorEntity):
+    """What a signal consumer tells another integration, after SG Ready 1 to 4.
+
+    Text states rather than numbers: a unitless number would be taken for a
+    measurement and drawn as a line. Without a grid reading it is unavailable
+    rather than a guess, and whoever follows it falls back to normal.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [signal.value for signal in EnergySignal]
+
+    def __init__(
+        self, coordinator: SolarSurplusCoordinator, consumer: Consumer
+    ) -> None:
+        super().__init__(coordinator, consumer, "energy_signal")
+
+    @property
+    def available(self) -> bool:
+        data = self.coordinator.data
+        return super().available and data is not None and data.surplus is not None
+
+    @property
+    def native_value(self) -> str:
+        # What was last told, which in test mode is not what the simulation
+        # decided: the signal is not changed there either.
+        level = self.coordinator.memory.consumer(self._consumer_id).signal
+        return SG_STATE_NAMES[SgState(level)].value

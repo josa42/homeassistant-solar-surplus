@@ -7,9 +7,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.solar_surplus.const import DOMAIN, SIGNAL_ID, Override
+from custom_components.solar_surplus.const import DOMAIN, Override
 
-from .conftest import HEATING_ROD, HEATING_ROD_DATA, grid
+from .conftest import HEAT_PUMP_SIGNAL_DATA, HEATING_ROD, HEATING_ROD_DATA, grid, hub
 
 
 async def subscribe(client) -> dict:
@@ -36,7 +36,7 @@ async def test_subscribing_pushes_every_run(
     assert first["control_enabled"] is True
     assert first["has_forecast"] is False
     assert first["settings"]["reserve"] == 100
-    assert first["decision"]["order"] == [rod, SIGNAL_ID]
+    assert first["decision"]["order"] == [rod]
     assert first["decision"]["consumers"][0]["state"] == "on"
 
     grid(hass, 0)
@@ -45,20 +45,20 @@ async def test_subscribing_pushes_every_run(
     assert pushed["event"]["decision"]["grid"] == 0
 
 
-async def test_reordering(
-    hass: HomeAssistant, setup_entry, entry: MockConfigEntry, hass_ws_client
-) -> None:
+async def test_reordering(hass: HomeAssistant, setup_entry, hass_ws_client) -> None:
+    entry = hub(HEATING_ROD_DATA, HEAT_PUMP_SIGNAL_DATA)
+    entry.add_to_hass(hass)
     coordinator = await setup_entry(entry)
-    rod = next(iter(entry.subentries))
+    rod, signal = entry.subentries
     client = await hass_ws_client(hass)
 
     await client.send_json_auto_id(
-        {"type": "solar_surplus/reorder", "order": [SIGNAL_ID, rod]}
+        {"type": "solar_surplus/reorder", "order": [signal, rod]}
     )
     result = await client.receive_json()
     assert result["success"]
-    assert result["result"]["decision"]["order"] == [SIGNAL_ID, rod]
-    assert coordinator.store.order == [SIGNAL_ID, rod]
+    assert result["result"]["decision"]["order"] == [signal, rod]
+    assert coordinator.store.order == [signal, rod]
 
 
 async def test_an_unknown_consumer_cannot_be_ordered(

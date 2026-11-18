@@ -10,7 +10,9 @@
 const PANEL_VERSION = "0.1.0";
 
 const NARROW_QUERY = "(max-width: 700px)";
-const SIGNAL_ID = "energy_signal";
+
+// The SG Ready states by the names a signal tells them by.
+const SIGNAL_LEVELS = { 1: "blocked", 2: "normal", 3: "recommended", 4: "forced" };
 
 // Home Assistant only ships a fixed set of translation categories to the
 // frontend, and a custom panel's keys are not one of them, so the panel carries
@@ -38,7 +40,6 @@ const STRINGS = {
     "card.battery_discharging": "discharging",
     "card.allocated": "Allocated",
     "card.remaining": "{value} left",
-    "card.signal": "Energy signal",
     "card.forecast": "Forecast",
     "forecast.none": "No forecast configured.",
     "forecast.remaining": "{value} left today",
@@ -48,8 +49,6 @@ const STRINGS = {
     "list.empty": "No consumers yet. Add one on the integration's page.",
     "list.up": "Move up",
     "list.down": "Move down",
-    "list.signal": "Energy signal",
-    "list.signal_hint": "Sees what is left here, and takes nothing away.",
     "override.auto": "Auto",
     "override.on": "On",
     "override.off": "Off",
@@ -58,6 +57,7 @@ const STRINGS = {
     "adapter.sg_ready": "SG Ready",
     "adapter.script": "Scripts",
     "adapter.deferrable": "Deferrable",
+    "adapter.signal": "Signal",
     "state.off": "Off",
     "state.on": "On",
     "state.locked": "Locked",
@@ -71,14 +71,6 @@ const STRINGS = {
     "signal.recommended": "Recommended",
     "signal.forced": "Forced",
     "signal.unavailable": "Unavailable",
-    "signal_reason.pv_surplus": "solar surplus",
-    "signal_reason.battery_full": "battery full",
-    "signal_reason.grid_import": "drawing from the grid",
-    "signal_reason.low_battery": "battery empty",
-    "signal_reason.none": "",
-    "signal.since": "since {time}",
-    "signal.until": "until about {time}",
-    "signal.pending": "becomes {state} soon",
     "reason.override_on": "Switched on by hand",
     "reason.override_off": "Switched off by hand",
     "reason.unavailable": "An entity is unavailable",
@@ -90,6 +82,7 @@ const STRINGS = {
     "reason.min_off_time": "Minimum off time until {until}",
     "reason.forced_surplus": "Plenty of surplus: forced",
     "reason.grid_import": "Drawing from the grid: locked until {until} at most",
+    "reason.grid_import_signal": "Drawing from the grid with the battery empty",
     "reason.lock_limit": "Lock limit reached; can lock again from {until}",
     "reason.not_ready": "Not ready",
     "reason.waiting_forecast": "Waiting for the surplus expected from {expected_start}",
@@ -125,7 +118,6 @@ const STRINGS = {
     "card.battery_discharging": "entlädt",
     "card.allocated": "Verteilt",
     "card.remaining": "{value} übrig",
-    "card.signal": "Energiesignal",
     "card.forecast": "Prognose",
     "forecast.none": "Keine Prognose eingerichtet.",
     "forecast.remaining": "heute noch {value}",
@@ -135,8 +127,6 @@ const STRINGS = {
     "list.empty": "Noch keine Verbraucher. Auf der Seite der Integration hinzufügen.",
     "list.up": "Nach oben",
     "list.down": "Nach unten",
-    "list.signal": "Energiesignal",
-    "list.signal_hint": "Sieht, was hier übrig ist, und nimmt niemandem etwas weg.",
     "override.auto": "Auto",
     "override.on": "Ein",
     "override.off": "Aus",
@@ -145,6 +135,7 @@ const STRINGS = {
     "adapter.sg_ready": "SG Ready",
     "adapter.script": "Skripte",
     "adapter.deferrable": "Aufschiebbar",
+    "adapter.signal": "Signal",
     "state.off": "Aus",
     "state.on": "Ein",
     "state.locked": "Gesperrt",
@@ -158,14 +149,6 @@ const STRINGS = {
     "signal.recommended": "Empfohlen",
     "signal.forced": "Erzwungen",
     "signal.unavailable": "Nicht verfügbar",
-    "signal_reason.pv_surplus": "Solarüberschuss",
-    "signal_reason.battery_full": "Batterie voll",
-    "signal_reason.grid_import": "Netzbezug",
-    "signal_reason.low_battery": "Batterie leer",
-    "signal_reason.none": "",
-    "signal.since": "seit {time}",
-    "signal.until": "bis etwa {time}",
-    "signal.pending": "wird bald {state}",
     "reason.override_on": "Von Hand eingeschaltet",
     "reason.override_off": "Von Hand ausgeschaltet",
     "reason.unavailable": "Eine Entität ist nicht verfügbar",
@@ -177,6 +160,7 @@ const STRINGS = {
     "reason.min_off_time": "Mindestpause bis {until}",
     "reason.forced_surplus": "Reichlich Überschuss: erzwungen",
     "reason.grid_import": "Netzbezug: gesperrt bis höchstens {until}",
+    "reason.grid_import_signal": "Netzbezug bei leerer Batterie",
     "reason.lock_limit": "Sperrgrenze erreicht; wieder möglich ab {until}",
     "reason.not_ready": "Nicht bereit",
     "reason.waiting_forecast": "Wartet auf den ab {expected_start} erwarteten Überschuss",
@@ -196,7 +180,6 @@ const ICONS = {
   up: "M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41Z",
   down: "M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41Z",
   drag: "M7 19v-2h2v2H7m4 0v-2h2v2h-2m4 0v-2h2v2h-2m-8-4v-2h2v2H7m4 0v-2h2v2h-2m4 0v-2h2v2h-2m-8-4V9h2v2H7m4 0V9h2v2h-2m4 0V9h2v2h-2M7 7V5h2v2H7m4 0V5h2v2h-2m4 0V5h2v2h-2Z",
-  signal: "M3 17h2v4H3v-4m4-4h2v8H7v-8m4-4h2v12h-2V9m4-4h2v16h-2V5m4-2h2v18h-2V3Z",
 };
 
 function language(hass) {
@@ -301,7 +284,8 @@ function reasonText(hass, consumer) {
     started_at: formatTime(hass, d.started_at),
     expected_end: formatTime(hass, d.expected_end),
   };
-  const parts = [t(hass, `reason.${consumer.reason}`, values)];
+  const key = consumer.adapter === "signal" && consumer.reason === "grid_import" ? "grid_import_signal" : consumer.reason;
+  const parts = [t(hass, `reason.${key}`, values)];
   if (consumer.adapter === "deferrable") {
     if (consumer.reason === "running" || (consumer.state === "running" && d.expected_end)) {
       parts.push(t(hass, "detail.expected_end", values));
@@ -456,7 +440,6 @@ const STYLE = `
   .chip.forced, .chip.running { --chip-color: var(--ss-run); }
   .chip.waiting { --chip-color: var(--ss-wait); }
   .chip.locked, .chip.blocked, .chip.unavailable { --chip-color: var(--ss-locked); }
-  .signal-value { margin: 6px 0 2px; }
   .forecast svg { display: block; width: 100%; height: 120px; }
   .forecast .hours {
     display: flex;
@@ -501,7 +484,6 @@ const STYLE = `
   li.row.dragging { opacity: 0.4; }
   li.row.drop-before { box-shadow: inset 0 2px 0 var(--primary-color, #03a9f4); }
   li.row.drop-after { box-shadow: inset 0 -2px 0 var(--primary-color, #03a9f4); }
-  li.row.signal { background: color-mix(in srgb, var(--primary-color, #03a9f4) 6%, var(--card-background-color, #fff)); }
   .handle { grid-area: handle; color: var(--secondary-text-color, #727272); cursor: grab; line-height: 0; }
   .pos {
     grid-area: pos;
@@ -683,7 +665,7 @@ class SolarSurplusPanel extends HTMLElement {
     const state = this._state;
     const order = state?.decision?.order;
     if (order) return order;
-    return [...Object.keys(state?.consumers || {}), SIGNAL_ID];
+    return Object.keys(state?.consumers || {});
   }
 
   _move(id, offset) {
@@ -807,28 +789,7 @@ class SolarSurplusPanel extends HTMLElement {
         t(hass, "card.remaining", { value: formatPower(hass, decision.remaining) })
       )
     );
-    cards.append(this._signalCard());
     return cards;
-  }
-
-  _signalParts() {
-    const hass = this._hass;
-    const signal = this._state.decision?.signal || {};
-    const state = signal.state || "unavailable";
-    const parts = [];
-    const reason = signal.reason ? t(hass, `signal_reason.${signal.reason}`) : "";
-    if (reason && signal.state) parts.push(reason);
-    if (signal.until) parts.push(t(hass, "signal.until", { time: formatTime(hass, signal.until) }));
-    else if (signal.since && signal.state) parts.push(t(hass, "signal.since", { time: formatTime(hass, signal.since) }));
-    if (signal.pending) parts.push(t(hass, "signal.pending", { state: t(hass, `signal.${signal.pending}`) }));
-    return { state, text: parts.join(" · ") };
-  }
-
-  _signalCard() {
-    const hass = this._hass;
-    const { state, text } = this._signalParts();
-    const chip = h("div", { class: "signal-value" }, h("span", { class: `chip ${state}`, text: t(hass, `signal.${state}`) }));
-    return this._stat(t(hass, "card.signal"), null, text, chip);
   }
 
   _renderForecast() {
@@ -914,13 +875,10 @@ class SolarSurplusPanel extends HTMLElement {
       card.append(h("p", { class: "hint", text: t(hass, "list.empty") }));
     }
     const decisions = Object.fromEntries((this._state.decision?.consumers || []).map((c) => [c.id, c]));
-    const order = this._order().filter((id) => id === SIGNAL_ID || consumers[id]);
+    const order = this._order().filter((id) => consumers[id]);
     const list = h("ol", { class: "list" });
     order.forEach((id, index) => {
-      const row =
-        id === SIGNAL_ID
-          ? this._signalRow(index, order.length)
-          : this._consumerRow(id, consumers[id], decisions[id], index, order.length);
+      const row = this._consumerRow(id, consumers[id], decisions[id], index, order.length);
       this._makeDraggable(row, id);
       list.append(row);
     });
@@ -986,7 +944,7 @@ class SolarSurplusPanel extends HTMLElement {
           "div",
           { class: "name" },
           h("span", { text: consumer.title }),
-          h("span", { class: `chip ${state}`, text: t(hass, `state.${state}`) }),
+          this._chip(consumer, decision, state),
           h("span", { class: "kind", text: `${t(hass, `adapter.${consumer.adapter}`)} · ${formatPower(hass, consumer.power)}` })
         ),
         h("div", { class: "reason", text: decision ? reasonText(hass, decision) : "" })
@@ -995,25 +953,14 @@ class SolarSurplusPanel extends HTMLElement {
     );
   }
 
-  _signalRow(index, count) {
+  // A signal shows what it tells, the others what they do.
+  _chip(consumer, decision, state) {
     const hass = this._hass;
-    const { state, text } = this._signalParts();
-    const signal = this._state.decision?.signal || {};
-    const name = h("span", { text: t(hass, "list.signal") });
-    const label = h("span", { class: "name" }, icon("signal"), name, h("span", { class: `chip ${state}`, text: t(hass, `signal.${state}`) }));
-    return h(
-      "li",
-      { class: "row signal", "data-id": SIGNAL_ID },
-      this._handle(),
-      h("span", { class: "pos", text: String(index + 1) }),
-      h("div", { class: "main" }, label, h("div", { class: "reason", text: [text, t(hass, "list.signal_hint")].filter(Boolean).join(" · ") })),
-      h(
-        "div",
-        { class: "side" },
-        h("span", { class: "power", text: signal.power !== null && signal.power !== undefined ? formatPower(hass, signal.power) : "" }),
-        this._arrows(SIGNAL_ID, index, count)
-      )
-    );
+    const level = SIGNAL_LEVELS[decision?.details?.level];
+    if (consumer.adapter === "signal" && level && state !== "unavailable") {
+      return h("span", { class: `chip ${level}`, text: t(hass, `signal.${level}`) });
+    }
+    return h("span", { class: `chip ${state}`, text: t(hass, `state.${state}`) });
   }
 
   _makeDraggable(row, id) {

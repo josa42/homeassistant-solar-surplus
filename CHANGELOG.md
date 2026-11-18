@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+- **Signals**, a kind of consumer that switches nothing: it is decided like an
+  SG Ready heat pump and publishes what it would set as its own energy signal
+  sensor, for another integration to follow. Each signal has its own place in
+  the priority order, its own power and timings, and counts what follows it as
+  its own draw.
+
+### Removed
+
+- **BREAKING:** The hub's energy signal, `sensor.solar_surplus_energy_signal`,
+  and its settings under **Configure**. Add a signal consumer instead, and point
+  whatever followed the old sensor to the new one. *Blocked from grid import of*
+  moved to the house's settings.
+
 ### Changed
 
 - **Battery power** is read as positive when discharging by default, as in the

@@ -12,6 +12,10 @@ running until the house would draw from the grid. It switches on only once
 enough surplus has held for its delay, and off once too little has held for its
 delay. Between switching, it keeps its minimum on and off times. A consumer
 below another loses its power first, because the one above is served before it.
+
+A signal consumer is decided like an SG Ready heat pump, but switches nothing:
+its state is published for another integration to follow, which reacts to it
+as the heat pump would.
 """
 
 from __future__ import annotations
@@ -23,16 +27,13 @@ from .const import (
     FINISH_GRACE,
     SG_LOCK_MAX,
     SG_LOCK_PAUSE,
-    SIGNAL_ID,
     SMOOTHING,
     AdapterType,
     ConsumerState,
     DeferrablePhase,
-    EnergySignal,
     Override,
     Reason,
     SgState,
-    SignalReason,
 )
 from .models import (
     ConsumerDecision,
@@ -43,16 +44,10 @@ from .models import (
     ForecastPeriod,
     HubMemory,
     Inputs,
-    SignalDecision,
 )
 
-#: The signal's states from lowest to highest, to tell a rise from a fall.
-SIGNAL_RANK = {
-    EnergySignal.BLOCKED: 0,
-    EnergySignal.NORMAL: 1,
-    EnergySignal.RECOMMENDED: 2,
-    EnergySignal.FORCED: 3,
-}
+#: The kinds decided as SG Ready: lock, normal, recommended or forced.
+SG_KINDS = (AdapterType.SG_READY, AdapterType.SIGNAL)
 
 
 def decide(
@@ -78,11 +73,7 @@ def decide(
 
     budget = smoothed
     decisions: list[ConsumerDecision] = []
-    signal = SignalDecision(state=None)
     for item in ordered:
-        if item == SIGNAL_ID:
-            signal = _signal(inputs, memory.hub, budget + inputs.followers, budget)
-            continue
         consumer = by_id[item]
         decision = _decide_consumer(
             consumer,
@@ -105,7 +96,6 @@ def decide(
         surplus=smoothed,
         allocated=allocated,
         remaining=budget,
-        signal=signal,
         consumers=decisions,
         order=ordered,
         forecast=inputs.forecast,
@@ -113,18 +103,13 @@ def decide(
 
 
 def _ordered(order: list[str], by_id: dict[str, ConsumerInput]) -> list[str]:
-    """The priority order: as stored, then anything new, then the signal.
+    """The priority order: as stored, then anything new.
 
     A consumer added since the order was last saved goes to the end, below
-    everything the user has placed. The signal goes last until it is moved.
+    everything the user has placed.
     """
-    known = [item for item in order if item in by_id or item == SIGNAL_ID]
-    known = list(dict.fromkeys(known))
-    new = [consumer_id for consumer_id in by_id if consumer_id not in known]
-    result = known + new
-    if SIGNAL_ID not in result:
-        result.append(SIGNAL_ID)
-    return result
+    known = list(dict.fromkeys(item for item in order if item in by_id))
+    return known + [consumer_id for consumer_id in by_id if consumer_id not in known]
 
 
 def _observe(consumer: ConsumerInput, memory: ConsumerMemory, now: datetime) -> None:
@@ -153,10 +138,7 @@ def drawn(consumer: ConsumerInput) -> float:
         return max(reading.power, 0.0)
     if consumer.spec.adapter is AdapterType.NUMBER:
         return reading.level
-    if (
-        consumer.spec.adapter is AdapterType.SG_READY
-        and reading.level == SgState.FORCED
-    ):
+    if consumer.spec.adapter in SG_KINDS and reading.level == SgState.FORCED:
         # Forced, it draws more than its nominal power; without a sensor the
         # forced threshold is the best guess of how much.
         return consumer.spec.power + (consumer.spec.forced_power or 0)
@@ -241,15 +223,11 @@ def _without_data(
     decisions = []
     by_id = {consumer.spec.id: consumer for consumer in consumers}
     for item in ordered:
-        if item == SIGNAL_ID:
-            continue
         consumer = by_id[item]
         state = ConsumerState.ON if consumer.reading.active else ConsumerState.OFF
         if not consumer.reading.available:
             state = ConsumerState.UNAVAILABLE
         decisions.append(_decision(consumer, state, Reason.NO_DATA))
-    memory.hub.signal = None
-    memory.hub.signal_pending = None
     return Decision(
         now=inputs.now,
         control_enabled=inputs.control_enabled,
@@ -260,7 +238,6 @@ def _without_data(
         surplus=None,
         allocated=0,
         remaining=None,
-        signal=SignalDecision(state=None),
         consumers=decisions,
         order=ordered,
         forecast=inputs.forecast,
@@ -298,7 +275,7 @@ def _decide_consumer(
         decision = _deferrable(consumer, memory, inputs, budget)
     elif adapter is AdapterType.NUMBER:
         decision = _number(consumer, memory, inputs, budget)
-    elif adapter is AdapterType.SG_READY:
+    elif adapter in SG_KINDS:
         decision = _sg_ready(consumer, memory, inputs, budget, import_blocked)
     else:
         decision = _on_off(consumer, memory, inputs, budget)
@@ -459,12 +436,13 @@ def _sg_ready(
     budget: float,
     import_blocked: bool,
 ) -> ConsumerDecision:
-    """An SG Ready heat pump: locked, normal, recommended or forced.
+    """An SG Ready heat pump or a signal: locked, normal, recommended or forced.
 
     Recommended is its "on", and switches like any other consumer. Forced is a
     second step above it, for when the surplus beyond its own power reaches the
     forced threshold. A lock is only set when the house draws from the grid with
-    the battery empty, and for at most two hours at a time.
+    the battery empty. A heat pump is locked for at most two hours at a time, as
+    SG Ready allows; a signal says blocked for as long as it lasts.
     """
     spec = consumer.spec
     now = inputs.now
@@ -511,7 +489,10 @@ def _sg_ready(
     memory.forced_pending_since = None
     level = SgState.NORMAL
     if spec.lock and import_blocked and consumer.override is Override.AUTO:
-        if memory.lock_ended is not None and now < memory.lock_ended + SG_LOCK_PAUSE:
+        if spec.adapter is AdapterType.SIGNAL:
+            level = SgState.LOCK
+            reason = Reason.GRID_IMPORT
+        elif memory.lock_ended is not None and now < memory.lock_ended + SG_LOCK_PAUSE:
             reason = Reason.LOCK_LIMIT
             details["until"] = memory.lock_ended + SG_LOCK_PAUSE
         else:
@@ -758,99 +739,6 @@ def _expected_start(
         if latest_start is not None and period.start >= latest_start:
             break
         if expected_surplus(inputs, period) >= power:
-            return max(period.start, inputs.now)
-    return None
-
-
-################################################################################
-# The energy signal
-################################################################################
-
-
-def _signal(
-    inputs: Inputs, hub: HubMemory, power: float, budget: float
-) -> SignalDecision:
-    """The energy signal at its place in the order.
-
-    `power` is what is left there for whoever follows the signal, their own
-    draw included. It rises after the rise delay and falls after the fall
-    delay, and holds each state at least for the minimum dwell.
-    """
-    settings = inputs.settings
-    now = inputs.now
-    candidate, reason = _signal_candidate(inputs, power, budget)
-
-    if hub.signal is None:
-        hub.signal = candidate
-        hub.signal_reason = reason
-        hub.signal_since = now
-        hub.signal_pending = None
-    elif candidate == hub.signal:
-        hub.signal_reason = reason
-        hub.signal_pending = None
-        hub.signal_pending_since = None
-    else:
-        if hub.signal_pending != candidate:
-            hub.signal_pending = candidate
-            hub.signal_pending_since = now
-        rising = SIGNAL_RANK[candidate] > SIGNAL_RANK[hub.signal]
-        delay = settings.signal_rise_delay if rising else settings.signal_fall_delay
-        held = now - (hub.signal_since or now)
-        if (
-            now - hub.signal_pending_since >= delay
-            and held >= settings.signal_min_dwell
-        ):
-            hub.signal = candidate
-            hub.signal_reason = reason
-            hub.signal_since = now
-            hub.signal_pending = None
-            hub.signal_pending_since = None
-
-    return SignalDecision(
-        state=hub.signal,
-        reason=hub.signal_reason,
-        since=hub.signal_since,
-        until=_signal_until(inputs, hub.signal),
-        power=power,
-        pending=hub.signal_pending,
-        pending_since=hub.signal_pending_since,
-    )
-
-
-def _signal_candidate(
-    inputs: Inputs, power: float, budget: float
-) -> tuple[EnergySignal, SignalReason]:
-    """What the signal would be, without its delays."""
-    settings = inputs.settings
-    soc = inputs.soc
-    if power >= settings.signal_forced:
-        return EnergySignal.FORCED, SignalReason.PV_SURPLUS
-    if power >= settings.signal_recommended:
-        if soc is not None and soc >= settings.signal_forced_soc:
-            return EnergySignal.FORCED, SignalReason.BATTERY_FULL
-        return EnergySignal.RECOMMENDED, SignalReason.PV_SURPLUS
-    importing = -(budget + settings.reserve) >= settings.signal_blocked
-    if importing and _battery_low(inputs):
-        if soc is None:
-            return EnergySignal.BLOCKED, SignalReason.GRID_IMPORT
-        return EnergySignal.BLOCKED, SignalReason.LOW_BATTERY
-    return EnergySignal.NORMAL, SignalReason.NONE
-
-
-def _signal_until(inputs: Inputs, state: EnergySignal | None) -> datetime | None:
-    """When the forecast expects a surplus signal to end."""
-    if (
-        state not in (EnergySignal.RECOMMENDED, EnergySignal.FORCED)
-        or not inputs.forecast
-    ):
-        return None
-    for period in inputs.forecast:
-        if period.end <= inputs.now:
-            continue
-        if (
-            expected_surplus(inputs, period) + inputs.settings.reserve
-            < inputs.settings.signal_recommended
-        ):
             return max(period.start, inputs.now)
     return None
 

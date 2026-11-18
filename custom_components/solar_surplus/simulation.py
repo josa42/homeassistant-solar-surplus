@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from .const import AdapterType, ConsumerState, Reason, SgState
-from .engine import drawn
+from .engine import SG_KINDS, drawn
 from .models import (
     ConsumerDecision,
     ConsumerInput,
@@ -32,7 +32,7 @@ class Action:
     adapter: AdapterType
     state: ConsumerState
     reason: Reason
-    #: Number: the power it would be set to. SG Ready: the state.
+    #: Number: the power it would be set to. SG Ready and signal: the state.
     level: float | None = None
 
 
@@ -139,7 +139,7 @@ def _apply(item: ConsumerDecision, state: Pretended) -> bool:
             state.ready_cleared = True
             return True
         return False
-    if item.adapter is AdapterType.SG_READY:
+    if item.adapter in SG_KINDS:
         if item.target_level is None or item.target_level == state.level:
             return False
         state.level = item.target_level
@@ -161,7 +161,7 @@ def _apply(item: ConsumerDecision, state: Pretended) -> bool:
 def _level(item: ConsumerDecision, state: Pretended) -> float | None:
     if item.adapter is AdapterType.NUMBER and state.active:
         return state.level
-    if item.adapter is AdapterType.SG_READY:
+    if item.adapter in SG_KINDS:
         return state.level
     return None
 

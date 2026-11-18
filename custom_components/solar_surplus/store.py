@@ -14,7 +14,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 
-from .const import SIGNAL_ID, STORAGE_KEY, STORAGE_VERSION, Override
+from .const import STORAGE_KEY, STORAGE_VERSION, Override
 
 #: Saving is delayed, so a burst of changes is written once.
 SAVE_DELAY = 5
@@ -36,9 +36,7 @@ class SolarSurplusStore:
         known = set(consumer_ids)
         order = raw.get("order")
         self.order = (
-            [item for item in order if item in known or item == SIGNAL_ID]
-            if isinstance(order, list)
-            else []
+            [item for item in order if item in known] if isinstance(order, list) else []
         )
         self.overrides = {}
         for consumer_id, value in (raw.get("overrides") or {}).items():

@@ -11,9 +11,9 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.solar_surplus.const import DOMAIN
 
-from .conftest import HEATING_ROD, grid
+from .conftest import HEAT_PUMP_SIGNAL_DATA, HEATING_ROD, HEATING_ROD_DATA, grid, hub
 
-SIGNAL = "sensor.solar_surplus_energy_signal"
+SIGNAL = "sensor.heat_pump_energy_signal"
 STATUS = "sensor.heating_rod_status"
 MODE = "select.heating_rod_mode"
 CONTROL = "switch.solar_surplus_control"
@@ -47,26 +47,51 @@ async def test_the_hub_shows_the_surplus(
     )
 
 
-async def test_the_energy_signal(
-    hass: HomeAssistant, setup_entry, entry: MockConfigEntry
-) -> None:
-    grid(hass, -3000)
-    await setup_entry(entry)
+async def signal_after_the_rod(hass: HomeAssistant, setup_entry):
+    entry = hub(HEATING_ROD_DATA, HEAT_PUMP_SIGNAL_DATA)
+    entry.add_to_hass(hass)
+    return await setup_entry(entry)
 
+
+async def test_a_signal_tells_what_it_was_given(
+    hass: HomeAssistant, setup_entry
+) -> None:
+    grid(hass, -3500)
+    coordinator = await signal_after_the_rod(hass, setup_entry)
     state = hass.states.get(SIGNAL)
     assert state.attributes["device_class"] == "enum"
     assert state.attributes["options"] == ["blocked", "normal", "recommended", "forced"]
-    # The heating rod comes first and takes 2000 W of it; 900 W are left.
-    assert state.state == "recommended"
-    assert state.attributes["reason"] == "pv_surplus"
-    assert state.attributes["since"]
-    assert "until" not in state.attributes, "without a forecast nobody knows"
+    assert state.state == "normal", "the first run only reads"
+    assert hass.states.get("sensor.solar_surplus_energy_signal") is None
+
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    # The heating rod comes first and takes 2000 W of it; 1400 W are left.
+    assert hass.states.get(SIGNAL).state == "recommended"
+    assert hass.states.get("sensor.heat_pump_status").state == "on"
+
+    # A cloud: the rod and the heat pump draw 3000 W, and 1000 W come from the
+    # grid.
+    grid(hass, 4000)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(SIGNAL).state == "blocked", "no battery to cover it"
+
+
+async def test_a_signal_is_not_changed_in_test_mode(
+    hass: HomeAssistant, setup_entry
+) -> None:
+    grid(hass, -3500)
+    coordinator = await signal_after_the_rod(hass, setup_entry)
+    await coordinator.async_set_test_mode_now(True)
+    await hass.async_block_till_done()
+    assert hass.states.get(SIGNAL).state == "normal"
 
 
 async def test_without_a_grid_reading_the_signal_is_unavailable(
-    hass: HomeAssistant, setup_entry, entry: MockConfigEntry
+    hass: HomeAssistant, setup_entry
 ) -> None:
-    coordinator = await setup_entry(entry)
+    coordinator = await signal_after_the_rod(hass, setup_entry)
     hass.states.async_set("sensor.grid", "unavailable")
     await coordinator.async_refresh()
     await hass.async_block_till_done()

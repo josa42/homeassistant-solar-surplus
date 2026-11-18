@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import Any
 
 from homeassistant.components import persistent_notification
@@ -35,25 +34,12 @@ from .const import (
     CONF_NOTIFY_TARGET,
     CONF_RESERVE,
     CONF_SIGNAL_BLOCKED,
-    CONF_SIGNAL_FALL_DELAY,
-    CONF_SIGNAL_FOLLOWERS,
-    CONF_SIGNAL_FORCED,
-    CONF_SIGNAL_FORCED_SOC,
-    CONF_SIGNAL_MIN_DWELL,
-    CONF_SIGNAL_RECOMMENDED,
-    CONF_SIGNAL_RISE_DELAY,
     DEFAULT_BASE_LOAD,
     DEFAULT_BATTERY_DISCHARGE_POSITIVE,
     DEFAULT_BATTERY_MIN_SOC,
     DEFAULT_BATTERY_TARGET_SOC,
     DEFAULT_RESERVE,
     DEFAULT_SIGNAL_BLOCKED,
-    DEFAULT_SIGNAL_FALL_DELAY,
-    DEFAULT_SIGNAL_FORCED,
-    DEFAULT_SIGNAL_FORCED_SOC,
-    DEFAULT_SIGNAL_MIN_DWELL,
-    DEFAULT_SIGNAL_RECOMMENDED,
-    DEFAULT_SIGNAL_RISE_DELAY,
     DOMAIN,
     REFRESH_COOLDOWN,
     SUBENTRY_TYPE_CONSUMER,
@@ -63,7 +49,7 @@ from .const import (
     EnergySignal,
     SgState,
 )
-from .engine import decide
+from .engine import SG_KINDS, decide
 from .forecast import ForecastReader
 from .models import (
     ConsumerInput,
@@ -85,8 +71,8 @@ type SolarSurplusConfigEntry = ConfigEntry[SolarSurplusCoordinator]
 #: Sent after every run, for the panel's subscriptions.
 SIGNAL_UPDATE = f"{DOMAIN}_update"
 
-#: How the SG Ready states read in a notification: like the energy signal,
-#: which is named after them.
+#: The SG Ready states by the names a signal tells them by, which are also
+#: how they read in a notification.
 SG_STATE_NAMES = {
     SgState.LOCK: EnergySignal.BLOCKED,
     SgState.NORMAL: EnergySignal.NORMAL,
@@ -118,23 +104,7 @@ def hub_settings(values: Mapping[str, Any]) -> HubSettings:
         battery_max_charge=float(max_charge) if max_charge else None,
         reserve=float(values.get(CONF_RESERVE, DEFAULT_RESERVE)),
         base_load=float(values.get(CONF_BASE_LOAD, DEFAULT_BASE_LOAD)),
-        signal_recommended=float(
-            values.get(CONF_SIGNAL_RECOMMENDED, DEFAULT_SIGNAL_RECOMMENDED)
-        ),
-        signal_forced=float(values.get(CONF_SIGNAL_FORCED, DEFAULT_SIGNAL_FORCED)),
-        signal_forced_soc=float(
-            values.get(CONF_SIGNAL_FORCED_SOC, DEFAULT_SIGNAL_FORCED_SOC)
-        ),
         signal_blocked=float(values.get(CONF_SIGNAL_BLOCKED, DEFAULT_SIGNAL_BLOCKED)),
-        signal_rise_delay=timedelta(
-            seconds=values.get(CONF_SIGNAL_RISE_DELAY, DEFAULT_SIGNAL_RISE_DELAY)
-        ),
-        signal_fall_delay=timedelta(
-            seconds=values.get(CONF_SIGNAL_FALL_DELAY, DEFAULT_SIGNAL_FALL_DELAY)
-        ),
-        signal_min_dwell=timedelta(
-            minutes=values.get(CONF_SIGNAL_MIN_DWELL, DEFAULT_SIGNAL_MIN_DWELL)
-        ),
     )
 
 
@@ -294,17 +264,11 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
             CONF_BATTERY_DISCHARGE_POSITIVE, DEFAULT_BATTERY_DISCHARGE_POSITIVE
         ):
             battery = -battery
-        followers = sum(
-            max(value, 0.0)
-            for entity_id in self.values.get(CONF_SIGNAL_FOLLOWERS, [])
-            if (value := as_watts(self.hass.states.get(entity_id))) is not None
-        )
         return Inputs(
             now=now,
             grid=grid,
             battery=battery,
             soc=as_float(self._state(CONF_BATTERY_SOC)),
-            followers=followers,
             forecast=forecast,
             control_enabled=self.control_enabled and not self._first_run,
             settings=self.settings,
@@ -333,7 +297,7 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         decision = decide(inputs, consumers, self.store.order, self.memory)
 
         if simulation is not None:
-            await self._async_notify(simulation.apply(decision), previous, decision)
+            await self._async_notify(simulation.apply(decision))
         elif inputs.control_enabled:
             for item in decision.consumers:
                 consumer = self.consumers[item.id]
@@ -375,17 +339,9 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
     # Test mode notifications
     ############################################################################
 
-    async def _async_notify(
-        self, actions: list[Action], previous: Decision | None, decision: Decision
-    ) -> None:
-        """Tell what would have been switched, and how the signal changed."""
-        signal = decision.signal
-        signal_changed = (
-            previous is not None
-            and signal.state is not None
-            and previous.signal.state != signal.state
-        )
-        if not actions and not signal_changed:
+    async def _async_notify(self, actions: list[Action]) -> None:
+        """Tell what would have been switched."""
+        if not actions:
             return
         strings = await async_get_translations(
             self.hass, self.hass.config.language, "entity", [DOMAIN]
@@ -399,7 +355,7 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
 
         lines = []
         for action in actions:
-            if action.adapter is AdapterType.SG_READY and action.level is not None:
+            if action.adapter in SG_KINDS and action.level is not None:
                 level = SG_STATE_NAMES[SgState(int(action.level))]
                 state = text(f"sensor.energy_signal.state.{level}", level)
             elif action.adapter is AdapterType.NUMBER and action.level is not None:
@@ -407,14 +363,6 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
             else:
                 state = text(f"sensor.status.state.{action.state}", action.state)
             lines.append(f"{action.name}: {state} ({reason(action.reason)})")
-        if signal_changed:
-            name = text("sensor.energy_signal.name", "Energy signal")
-            state = text(f"sensor.energy_signal.state.{signal.state}", signal.state)
-            why = text(
-                f"sensor.energy_signal.state_attributes.reason.state.{signal.reason}",
-                signal.reason,
-            )
-            lines.append(f"{name}: {state} ({why})")
         title = f"{TITLE}: {text('switch.test_mode.name', 'Test mode')}"
         await self._async_send(title, "\n".join(lines))
 
@@ -452,7 +400,7 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         )
 
     def _log_changes(self, previous: Decision | None, decision: Decision) -> None:
-        """Log each consumer whose state or reason changed, and the signal."""
+        """Log each consumer whose state or reason changed."""
         for item in decision.consumers:
             before = previous.consumer(item.id) if previous else None
             if before is None or (before.state, before.reason) != (
@@ -467,7 +415,3 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
                     None if decision.surplus is None else round(decision.surplus),
                     item.details,
                 )
-        if previous is None or previous.signal.state != decision.signal.state:
-            _LOGGER.debug(
-                "Energy signal: %s (%s)", decision.signal.state, decision.signal.reason
-            )

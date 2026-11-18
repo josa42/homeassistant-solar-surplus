@@ -17,7 +17,7 @@ from custom_components.solar_surplus.const import (
     Reason,
     SgState,
 )
-from custom_components.solar_surplus.engine import decide
+from custom_components.solar_surplus.engine import SG_KINDS, decide
 from custom_components.solar_surplus.models import (
     ConsumerInput,
     ConsumerReading,
@@ -44,7 +44,7 @@ class Paper:
 
     @staticmethod
     def _initial(consumer: ConsumerSpec) -> ConsumerReading:
-        if consumer.adapter is AdapterType.SG_READY:
+        if consumer.adapter in SG_KINDS:
             return ConsumerReading(level=SgState.NORMAL)
         if consumer.adapter is AdapterType.DEFERRABLE:
             return ConsumerReading(active=False)
@@ -138,6 +138,18 @@ def test_sg_ready_reports_its_state() -> None:
 
     house.run(-3000, after=timedelta(seconds=10))
     assert house.grid == -500, "forced, it would draw its power and the step"
+    assert house.actions == []
+
+
+def test_a_signal_reports_what_it_would_tell() -> None:
+    house = Paper(spec("heat_pump", 1000, AdapterType.SIGNAL))
+    house.run(-1500)
+    assert [(a.id, a.level) for a in house.actions] == [
+        ("heat_pump", SgState.RECOMMENDED)
+    ]
+
+    house.run(-1500, after=timedelta(seconds=10))
+    assert house.grid == -500, "whatever follows it would draw its power"
     assert house.actions == []
 
 

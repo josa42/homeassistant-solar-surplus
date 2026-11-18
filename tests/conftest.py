@@ -21,6 +21,8 @@ from custom_components.solar_surplus.const import (
     CONF_OFF_DELAY,
     CONF_ON_DELAY,
     CONF_POWER,
+    CONF_POWER_SENSOR,
+    CONF_SG_LOCK,
     CONF_SWITCH_ENTITY,
     DOMAIN,
     SUBENTRY_TYPE_CONSUMER,
@@ -40,6 +42,19 @@ HEATING_ROD_DATA: dict[str, Any] = {
     CONF_ADAPTER: AdapterType.SWITCH.value,
     CONF_POWER: 2000,
     CONF_SWITCH_ENTITY: HEATING_ROD,
+    CONF_MIN_ON_TIME: 0,
+    CONF_MIN_OFF_TIME: 0,
+    CONF_ON_DELAY: 0,
+    CONF_OFF_DELAY: 0,
+}
+
+#: A signal that the heat pump's climate control follows.
+HEAT_PUMP_SIGNAL_DATA: dict[str, Any] = {
+    CONF_NAME: "Heat pump",
+    CONF_ADAPTER: AdapterType.SIGNAL.value,
+    CONF_POWER: 1000,
+    CONF_POWER_SENSOR: "sensor.heat_pump_power",
+    CONF_SG_LOCK: True,
     CONF_MIN_ON_TIME: 0,
     CONF_MIN_OFF_TIME: 0,
     CONF_ON_DELAY: 0,
