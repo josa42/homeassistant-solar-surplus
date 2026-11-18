@@ -40,7 +40,8 @@
         "title": "Solarüberschuss",
         "menu_options": {
           "inputs": "Zähler und Prognose",
-          "energy_signal": "Energiesignal"
+          "energy_signal": "Energiesignal",
+          "test_mode": "Testmodus"
         }
       },
       "inputs": {
@@ -88,6 +89,16 @@
           "signal_forced_soc": "Ist die Batterie so voll, wird ein empfohlener Überschuss zu erzwungen.",
           "signal_blocked": "Nur solange die Batterie leer ist oder keine vorhanden ist.",
           "signal_followers": "Optional. Ihr Verbrauch wird zurückgerechnet, damit sich das Signal nicht selbst abschaltet, wenn sie darauf reagieren."
+        }
+      },
+      "test_mode": {
+        "title": "Testmodus",
+        "description": "Mit dem Schalter Testmodus an wird nichts geschaltet. Solar Surplus führt seine Entscheidungen in einer Simulation des Hauses aus und schickt eine Benachrichtigung, was es geschaltet hätte.",
+        "data": {
+          "notify_target": "Benachrichtigen"
+        },
+        "data_description": {
+          "notify_target": "Eine Benachrichtigungsaktion oder -entität, etwa die deines Handys. Leer gelassen eine Benachrichtigung in der Seitenleiste von Home Assistant."
         }
       }
     }
@@ -338,6 +349,9 @@
     "switch": {
       "control": {
         "name": "Steuerung"
+      },
+      "test_mode": {
+        "name": "Testmodus"
       }
     },
     "select": {

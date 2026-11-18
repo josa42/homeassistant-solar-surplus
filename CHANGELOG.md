@@ -22,3 +22,6 @@
   priority order with what it does and why. The order is changed by dragging,
   and each consumer can be put on Auto, On or Off.
 - **Diagnostics** with the configuration, the order and the last decision.
+- **Test mode**, which switches nothing and sends a notification of what would
+  be switched, to a notify action or entity or as a persistent notification.
+  The decisions are carried out in a simulation of the house meanwhile.

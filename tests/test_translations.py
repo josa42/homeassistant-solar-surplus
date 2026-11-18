@@ -16,6 +16,7 @@ from custom_components.solar_surplus.config_flow import (
     CONSUMER_SCHEMAS,
     adapter_schema,
     hub_schema,
+    notify_schema,
     signal_schema,
 )
 from custom_components.solar_surplus.const import (
@@ -85,6 +86,7 @@ def test_every_form_field_has_a_label(language: str) -> None:
         (hub_schema({}, FORECAST_OPTIONS), data["config"]["step"]["user"]["data"]),
         (hub_schema({}, FORECAST_OPTIONS), data["options"]["step"]["inputs"]["data"]),
         (signal_schema({}), data["options"]["step"]["energy_signal"]["data"]),
+        (notify_schema({}, []), data["options"]["step"]["test_mode"]["data"]),
         (adapter_schema(), subentry_steps["user"]["data"]),
     ]
     forms += [

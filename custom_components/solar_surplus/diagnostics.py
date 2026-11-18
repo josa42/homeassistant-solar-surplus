@@ -22,6 +22,7 @@ async def async_get_config_entry_diagnostics(
             for subentry_id, subentry in entry.subentries.items()
         },
         "control_enabled": coordinator.control_enabled,
+        "test_mode": coordinator.test_mode,
         "store": {
             "order": coordinator.store.order,
             "overrides": {

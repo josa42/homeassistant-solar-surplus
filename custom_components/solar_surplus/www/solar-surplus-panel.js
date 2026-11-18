@@ -24,6 +24,10 @@ const STRINGS = {
     "control.on": "Control on",
     "control.off": "Control off",
     "control.banner": "Control is off: every decision is shown, but nothing is switched.",
+    "test_mode.on": "Test mode on",
+    "test_mode.off": "Test mode off",
+    "test_mode.banner":
+      "Test mode: nothing is switched. Consumers are shown as if they had been, and each change is sent as a notification.",
     "card.surplus": "Surplus",
     "card.surplus_raw": "now {value}",
     "card.grid": "Grid",
@@ -107,6 +111,10 @@ const STRINGS = {
     "control.on": "Steuerung an",
     "control.off": "Steuerung aus",
     "control.banner": "Die Steuerung ist aus: Alle Entscheidungen werden angezeigt, aber nichts wird geschaltet.",
+    "test_mode.on": "Testmodus an",
+    "test_mode.off": "Testmodus aus",
+    "test_mode.banner":
+      "Testmodus: Es wird nichts geschaltet. Die Verbraucher werden gezeigt, als wären sie geschaltet worden, und jede Änderung kommt als Benachrichtigung.",
     "card.surplus": "Überschuss",
     "card.surplus_raw": "gerade {value}",
     "card.grid": "Netz",
@@ -371,6 +379,12 @@ const STYLE = `
     white-space: nowrap;
   }
   .control.off { opacity: 0.75; }
+  .control.test.off { opacity: 0.6; }
+  .control.test:not(.off) {
+    background: var(--warning-color, #ff9800);
+    border-color: var(--warning-color, #ff9800);
+    color: var(--text-primary-color, #fff);
+  }
   main {
     flex: 1;
     overflow: auto;
@@ -557,6 +571,7 @@ const STYLE = `
     .power { min-width: 0; text-align: start; }
     .side .arrows { flex-direction: row; margin-inline-start: auto; }
     .stat .value { font-size: 22px; }
+    .control { padding: 6px 10px; }
   }
 `;
 
@@ -706,7 +721,15 @@ class SolarSurplusPanel extends HTMLElement {
     toolbar.append(h("div", { class: `title${showToggle ? " with-icon" : ""}`, text: t(hass, "title") }));
     if (this._state) {
       const enabled = this._state.control_enabled;
+      const testing = !!this._state.test_mode;
       toolbar.append(
+        h("button", {
+          class: `control test${testing ? "" : " off"}`,
+          text: t(hass, testing ? "test_mode.on" : "test_mode.off"),
+          disabled: !this._isAdmin,
+          "aria-pressed": String(testing),
+          onClick: () => this._call({ type: "solar_surplus/set_test_mode", enabled: !testing }),
+        }),
         h("button", {
           class: `control${enabled ? "" : " off"}`,
           text: t(hass, enabled ? "control.on" : "control.off"),
@@ -723,6 +746,7 @@ class SolarSurplusPanel extends HTMLElement {
       if (!this._error) content.append(h("div", { class: "message", text: t(hass, "loading") }));
     } else {
       if (!this._state.control_enabled) content.append(h("div", { class: "banner", text: t(hass, "control.banner") }));
+      else if (this._state.test_mode) content.append(h("div", { class: "banner", text: t(hass, "test_mode.banner") }));
       content.append(this._renderCards(), this._renderForecast(), this._renderList());
     }
 

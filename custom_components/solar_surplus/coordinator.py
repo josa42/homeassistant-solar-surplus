@@ -8,12 +8,15 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -29,6 +32,7 @@ from .const import (
     CONF_FORECAST_ENTRIES,
     CONF_GRID_EXPORT_POSITIVE,
     CONF_GRID_POWER,
+    CONF_NOTIFY_TARGET,
     CONF_RESERVE,
     CONF_SIGNAL_BLOCKED,
     CONF_SIGNAL_FALL_DELAY,
@@ -53,6 +57,10 @@ from .const import (
     REFRESH_COOLDOWN,
     SUBENTRY_TYPE_CONSUMER,
     TICK_INTERVAL,
+    TITLE,
+    AdapterType,
+    EnergySignal,
+    SgState,
 )
 from .engine import decide
 from .forecast import ForecastReader
@@ -66,6 +74,7 @@ from .models import (
     HubSettings,
     Inputs,
 )
+from .simulation import Action, Simulation
 from .store import SolarSurplusStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,6 +83,15 @@ type SolarSurplusConfigEntry = ConfigEntry[SolarSurplusCoordinator]
 
 #: Sent after every run, for the panel's subscriptions.
 SIGNAL_UPDATE = f"{DOMAIN}_update"
+
+#: How the SG Ready states read in a notification: like the energy signal,
+#: which is named after them.
+SG_STATE_NAMES = {
+    SgState.LOCK: EnergySignal.BLOCKED,
+    SgState.NORMAL: EnergySignal.NORMAL,
+    SgState.RECOMMENDED: EnergySignal.RECOMMENDED,
+    SgState.FORCED: EnergySignal.FORCED,
+}
 
 
 @dataclass(slots=True)
@@ -157,14 +175,14 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
                 spec=spec,
                 adapter=build_adapter(hass, spec, subentry.data),
             )
-        self.memory = EngineMemory(
-            consumers={
-                consumer_id: ConsumerMemory.from_dict(store.memories.get(consumer_id))
-                for consumer_id in self.consumers
-            }
-        )
+        self.memory = EngineMemory(consumers=self._stored_memories())
         #: Off, everything is still decided and shown, but nothing is written.
         self.control_enabled = True
+        #: On, nothing is written either: the decisions are carried out in a
+        #: simulation, and what they would have switched is sent as
+        #: notifications.
+        self.test_mode = False
+        self._simulation: Simulation | None = None
         #: The first run only reads: nothing is known yet about how long
         #: anything has been in its state.
         self._first_run = True
@@ -245,6 +263,19 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         self.control_enabled = enabled
         await self.async_refresh()
 
+    @callback
+    def async_set_test_mode(self, enabled: bool) -> None:
+        """Only send notifications of what would be switched, or switch again."""
+        if self.test_mode == enabled:
+            return
+        self.test_mode = enabled
+        self.hass.async_create_task(self.async_request_refresh(), eager_start=True)
+
+    async def async_set_test_mode_now(self, enabled: bool) -> None:
+        """Like `async_set_test_mode`, but run at once."""
+        self.test_mode = enabled
+        await self.async_refresh()
+
     ############################################################################
     # Running
     ############################################################################
@@ -293,9 +324,14 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
             for consumer_id, consumer in self.consumers.items()
         ]
         previous = self.data
+        simulation = self._simulation_for_this_run()
+        if simulation is not None:
+            inputs, consumers = simulation.inputs(inputs, consumers)
         decision = decide(inputs, consumers, self.store.order, self.memory)
 
-        if inputs.control_enabled:
+        if simulation is not None:
+            await self._async_notify(simulation.apply(decision), previous, decision)
+        elif inputs.control_enabled:
             for item in decision.consumers:
                 consumer = self.consumers[item.id]
                 try:
@@ -306,8 +342,103 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
                     _LOGGER.exception("Switching %s failed", consumer.title)
         self._first_run = False
         self._log_changes(previous, decision)
-        self._sync_memories()
+        if simulation is None:
+            self._sync_memories()
         return decision
+
+    def _stored_memories(self) -> dict[str, ConsumerMemory]:
+        return {
+            consumer_id: ConsumerMemory.from_dict(self.store.memories.get(consumer_id))
+            for consumer_id in self.consumers
+        }
+
+    def _simulation_for_this_run(self) -> Simulation | None:
+        """The simulation while in test mode, started and ended as it changes.
+
+        What the engine remembers about the consumers belongs to the simulated
+        house, so it is not stored, and at the end the real house's is taken up
+        again from the store: the consumers start their minimum times afresh.
+        """
+        if self.test_mode and self.control_enabled:
+            if self._simulation is None:
+                self._simulation = Simulation()
+            return self._simulation
+        if self._simulation is not None:
+            self._simulation = None
+            self.memory.consumers = self._stored_memories()
+        return None
+
+    ############################################################################
+    # Test mode notifications
+    ############################################################################
+
+    async def _async_notify(
+        self, actions: list[Action], previous: Decision | None, decision: Decision
+    ) -> None:
+        """Tell what would have been switched, and how the signal changed."""
+        signal = decision.signal
+        signal_changed = (
+            previous is not None
+            and signal.state is not None
+            and previous.signal.state != signal.state
+        )
+        if not actions and not signal_changed:
+            return
+        strings = await async_get_translations(
+            self.hass, self.hass.config.language, "entity", [DOMAIN]
+        )
+
+        def text(key: str, fallback: str) -> str:
+            return strings.get(f"component.{DOMAIN}.entity.{key}", fallback)
+
+        def reason(value: str) -> str:
+            return text(f"sensor.status.state_attributes.reason.state.{value}", value)
+
+        lines = []
+        for action in actions:
+            if action.adapter is AdapterType.SG_READY and action.level is not None:
+                level = SG_STATE_NAMES[SgState(int(action.level))]
+                state = text(f"sensor.energy_signal.state.{level}", level)
+            elif action.adapter is AdapterType.NUMBER and action.level is not None:
+                state = f"{round(action.level)} W"
+            else:
+                state = text(f"sensor.status.state.{action.state}", action.state)
+            lines.append(f"{action.name}: {state} ({reason(action.reason)})")
+        if signal_changed:
+            name = text("sensor.energy_signal.name", "Energy signal")
+            state = text(f"sensor.energy_signal.state.{signal.state}", signal.state)
+            why = text(
+                f"sensor.energy_signal.state_attributes.reason.state.{signal.reason}",
+                signal.reason,
+            )
+            lines.append(f"{name}: {state} ({why})")
+        title = f"{TITLE}: {text('switch.test_mode.name', 'Test mode')}"
+        await self._async_send(title, "\n".join(lines))
+
+    async def _async_send(self, title: str, message: str) -> None:
+        """Send through the configured notify action or entity."""
+        target = self.values.get(CONF_NOTIFY_TARGET)
+        domain, _, name = (target or "").partition(".")
+        try:
+            if domain == "notify" and self.hass.services.has_service(domain, name):
+                await self.hass.services.async_call(
+                    domain, name, {"title": title, "message": message}, blocking=True
+                )
+                return
+            if domain == "notify" and self.hass.states.get(target) is not None:
+                await self.hass.services.async_call(
+                    domain,
+                    "send_message",
+                    {"entity_id": target, "title": title, "message": message},
+                    blocking=True,
+                )
+                return
+        except HomeAssistantError as err:
+            _LOGGER.warning("Sending the test mode notification failed: %s", err)
+        else:
+            if target:
+                _LOGGER.warning("%s cannot be notified, it does not exist", target)
+        persistent_notification.async_create(self.hass, message, title)
 
     def _sync_memories(self) -> None:
         self.store.async_set_memories(

@@ -55,6 +55,9 @@ CONF_SIGNAL_MIN_DWELL: Final = "signal_min_dwell"
 #: added back for the signal, which would otherwise switch itself off as soon
 #: as they react to it.
 CONF_SIGNAL_FOLLOWERS: Final = "signal_followers"
+#: Test mode: where to send what would have been switched. A `notify` action
+#: or entity; without one, a persistent notification.
+CONF_NOTIFY_TARGET: Final = "notify_target"
 
 DEFAULT_BATTERY_TARGET_SOC: Final = 90
 DEFAULT_BATTERY_MIN_SOC: Final = 20

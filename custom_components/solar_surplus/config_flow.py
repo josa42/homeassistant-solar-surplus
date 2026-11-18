@@ -37,6 +37,7 @@ from .const import (
     CONF_MIN_ON_TIME,
     CONF_MIN_POWER,
     CONF_NAME,
+    CONF_NOTIFY_TARGET,
     CONF_NUMBER_ENTITY,
     CONF_OFF_DELAY,
     CONF_OFF_ENTITY,
@@ -250,6 +251,23 @@ def signal_schema(values: dict[str, Any]) -> vol.Schema:
     )
 
 
+def notify_schema(
+    values: dict[str, Any], notify_options: list[selector.SelectOptionDict]
+) -> vol.Schema:
+    """Where test mode sends what it would have switched."""
+    return vol.Schema(
+        {
+            _suggest(CONF_NOTIFY_TARGET, values): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=notify_options,
+                    custom_value=True,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+        }
+    )
+
+
 def _consumer_head(values: dict[str, Any]) -> dict[Any, Any]:
     return {
         vol.Required(
@@ -394,6 +412,22 @@ def adapter_schema() -> vol.Schema:
     )
 
 
+def notify_options(hass: HomeAssistant) -> list[selector.SelectOptionDict]:
+    """The notify actions and entities, such as the companion app's."""
+    actions = [
+        selector.SelectOptionDict(value=f"notify.{name}", label=f"notify.{name}")
+        for name in sorted(hass.services.async_services_for_domain("notify"))
+        if name not in ("send_message", "persistent_notification")
+    ]
+    entities = [
+        selector.SelectOptionDict(
+            value=state.entity_id, label=f"{state.name} ({state.entity_id})"
+        )
+        for state in sorted(hass.states.async_all("notify"), key=lambda s: s.name)
+    ]
+    return actions + entities
+
+
 async def forecast_entry_options(
     hass: HomeAssistant,
 ) -> list[selector.SelectOptionDict]:
@@ -460,7 +494,7 @@ class SolarSurplusOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         return self.async_show_menu(
-            step_id="init", menu_options=["inputs", "energy_signal"]
+            step_id="init", menu_options=["inputs", "energy_signal", "test_mode"]
         )
 
     def _values(self) -> dict[str, Any]:
@@ -508,6 +542,17 @@ class SolarSurplusOptionsFlow(OptionsFlow):
             return self._save(user_input, SIGNAL_KEYS)
         return self.async_show_form(
             step_id="energy_signal", data_schema=signal_schema(self._values())
+        )
+
+    async def async_step_test_mode(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Where test mode sends its notifications."""
+        if user_input is not None:
+            return self._save(user_input, (CONF_NOTIFY_TARGET,))
+        return self.async_show_form(
+            step_id="test_mode",
+            data_schema=notify_schema(self._values(), notify_options(self.hass)),
         )
 
 

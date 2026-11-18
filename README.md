@@ -39,8 +39,9 @@ and can always tell you why a consumer is on or off.
 3. Choose the grid power sensor, and the battery and forecast if you have them
 4. Add each consumer through **Add a consumer** on the integration's page
 
-The meters and the energy signal can be changed later under **Configure**, each
-consumer under its own **Change this consumer**.
+The meters, the energy signal and where test mode sends its notifications can be
+changed later under **Configure**, each consumer under its own **Change this
+consumer**.
 
 ### The house
 
@@ -122,6 +123,7 @@ The hub's device:
 | `sensor.solar_surplus_forecast_power` | The solar power the forecast expects right now (only with a forecast) |
 | `sensor.solar_surplus_energy_signal` | The energy signal, see below |
 | `switch.solar_surplus_control` | Off, every decision is still made and shown, but nothing is switched. It keeps its state across a restart. |
+| `switch.solar_surplus_test_mode` | On, nothing is switched, and what would be is sent as a notification. See [Test mode](#test-mode). It keeps its state across a restart. |
 
 Each consumer gets a device of its own:
 
@@ -161,6 +163,37 @@ the forecast expects the surplus to end.
 
 These are set under **Configure** → **Energy signal**.
 
+### Test mode
+
+To see what Solar Surplus would do before it switches anything, turn on
+`switch.solar_surplus_test_mode`, or **Test mode** in the panel. Nothing is
+switched then. Instead, each decision is carried out in a simulation of the
+house, and what it would have switched comes as a notification:
+
+```
+Solar Surplus: Test mode
+Heating rod: On (Enough surplus)
+Heat pump: Recommended (Enough surplus)
+Wallbox: 1300 W (Enough surplus)
+```
+
+The simulation goes on from there as if the consumers had been switched: a
+consumer turned on stays on, and what it would draw is taken off the grid
+reading, so the next consumer does not get the same surplus a second time. The
+status sensors and the panel show the simulated house. Switching a consumer by
+hand is taken over. A variable consumer is reported when it turns on or off,
+not each time its power follows the surplus. A finished deferrable run counts
+its ready entity as off until it really goes off. Changes of the energy signal
+are reported too, while the sensor itself goes on being published.
+
+Notifications go to the notify action or entity set under **Configure** →
+**Test mode**, such as `notify.mobile_app_phone`. Without one, or if it does not
+exist, they show up as persistent notifications in the sidebar.
+
+With control off, test mode sends nothing: nothing would be switched. When test
+mode is turned off, the real house is read again, and the consumers start their
+minimum times afresh.
+
 <br><br>
 
 ## Panel
@@ -178,8 +211,8 @@ The integration adds **Solar Surplus** to the sidebar. It shows:
 - the energy signal at its place in the order
 
 Admins can change the order by dragging a row or with its arrows, put a hand on
-a consumer (Auto, On, Off), and turn control on or off. Everyone else sees the
-same, read-only.
+a consumer (Auto, On, Off), and turn control and test mode on or off. Everyone
+else sees the same, read-only.
 
 <br><br>
 

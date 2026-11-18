@@ -38,6 +38,7 @@ def panel_state(coordinator: SolarSurplusCoordinator) -> dict[str, Any]:
     return {
         "decision": decision.to_dict() if decision else None,
         "control_enabled": coordinator.control_enabled,
+        "test_mode": coordinator.test_mode,
         "has_forecast": coordinator.forecast.configured,
         "consumers": {
             consumer_id: {
@@ -85,6 +86,7 @@ def async_register(hass: HomeAssistant) -> None:
         handle_reorder,
         handle_set_override,
         handle_set_control,
+        handle_set_test_mode,
     ):
         websocket_api.async_register_command(hass, handler)
 
@@ -190,4 +192,24 @@ async def handle_set_control(
 ) -> None:
     """Let the allocation write, or only show what it would do."""
     await coordinator.async_set_control_now(msg["enabled"])
+    connection.send_result(msg["id"], panel_state(coordinator))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "solar_surplus/set_test_mode",
+        vol.Required("enabled"): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_coordinator
+async def handle_set_test_mode(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+    coordinator: SolarSurplusCoordinator,
+) -> None:
+    """Only send notifications of what would be switched, or switch again."""
+    await coordinator.async_set_test_mode_now(msg["enabled"])
     connection.send_result(msg["id"], panel_state(coordinator))

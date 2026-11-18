@@ -40,7 +40,8 @@
         "title": "Solar Surplus",
         "menu_options": {
           "inputs": "Meters and forecast",
-          "energy_signal": "Energy signal"
+          "energy_signal": "Energy signal",
+          "test_mode": "Test mode"
         }
       },
       "inputs": {
@@ -88,6 +89,16 @@
           "signal_forced_soc": "With the battery this full, a recommended surplus is forced.",
           "signal_blocked": "Only while the battery is empty or there is none.",
           "signal_followers": "Optional. Their draw is added back, so the signal does not switch itself off when they react to it."
+        }
+      },
+      "test_mode": {
+        "title": "Test mode",
+        "description": "With the Test mode switch on, nothing is switched. Solar Surplus carries its decisions out in a simulation of the house and sends a notification of what it would have switched.",
+        "data": {
+          "notify_target": "Notify"
+        },
+        "data_description": {
+          "notify_target": "A notify action or entity, such as your phone's. Left empty, a notification in Home Assistant's sidebar."
         }
       }
     }
@@ -338,6 +349,9 @@
     "switch": {
       "control": {
         "name": "Control"
+      },
+      "test_mode": {
+        "name": "Test mode"
       }
     },
     "select": {
