@@ -14,9 +14,10 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DOMAIN, Override
+from .const import DOMAIN, AdapterType, Override
 from .coordinator import SIGNAL_UPDATE, SolarSurplusCoordinator
 
 
@@ -35,6 +36,11 @@ def panel_state(coordinator: SolarSurplusCoordinator) -> dict[str, Any]:
     """Everything the panel shows."""
     settings = coordinator.settings
     decision = coordinator.data
+    registry = er.async_get(coordinator.hass)
+
+    def entity_id(consumer_id: str, key: str) -> str | None:
+        return registry.async_get_entity_id("sensor", DOMAIN, f"{consumer_id}_{key}")
+
     return {
         "decision": decision.to_dict() if decision else None,
         "control_enabled": coordinator.control_enabled,
@@ -46,6 +52,11 @@ def panel_state(coordinator: SolarSurplusCoordinator) -> dict[str, Any]:
                 "adapter": consumer.spec.adapter.value,
                 "power": consumer.spec.power,
                 "override": coordinator.store.override(consumer_id).value,
+                # For the panel to read the past from the history.
+                "status_entity": entity_id(consumer_id, "status"),
+                "signal_entity": entity_id(consumer_id, "energy_signal")
+                if consumer.spec.adapter is AdapterType.SIGNAL
+                else None,
             }
             for consumer_id, consumer in coordinator.consumers.items()
         },

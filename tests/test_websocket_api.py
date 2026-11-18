@@ -32,6 +32,8 @@ async def test_subscribing_pushes_every_run(
         "adapter": "switch",
         "power": 2000,
         "override": "auto",
+        "status_entity": "sensor.heating_rod_status",
+        "signal_entity": None,
     }
     assert first["control_enabled"] is True
     assert first["has_forecast"] is False

@@ -11,6 +11,10 @@ const PANEL_VERSION = "0.2.0";
 
 const NARROW_QUERY = "(max-width: 700px)";
 const TABS = ["overview", "priority"];
+// How many days back the forecast card goes: what the recorder keeps by default.
+const HISTORY_DAYS = 7;
+// Today's history is read again after this long.
+const HISTORY_REFRESH = 60 * 1000;
 const TAB_KEY = "solar-surplus-tab";
 
 // The tab last open, for this viewer only. Storage can be missing or throw.
@@ -60,7 +64,13 @@ const STRINGS = {
     "forecast.today": "Today",
     "forecast.previous": "Previous day",
     "forecast.next": "Next day",
-    "forecast.plan": "Expected to run",
+    "forecast.plan": "Consumers",
+    "forecast.no_forecast": "No forecast for this day.",
+    "legend.on": "On / recommended",
+    "legend.forced": "Forced",
+    "legend.blocked": "Locked / blocked",
+    "legend.ran": "Ran",
+    "legend.planned": "Expected",
     "tab.overview": "Overview",
     "tab.priority": "Priority",
     "list.title": "Priority",
@@ -147,7 +157,13 @@ const STRINGS = {
     "forecast.today": "Heute",
     "forecast.previous": "Vorheriger Tag",
     "forecast.next": "Nächster Tag",
-    "forecast.plan": "Läuft voraussichtlich",
+    "forecast.plan": "Verbraucher",
+    "forecast.no_forecast": "Keine Prognose für diesen Tag.",
+    "legend.on": "Ein / empfohlen",
+    "legend.forced": "Erzwungen",
+    "legend.blocked": "Gesperrt",
+    "legend.ran": "Lief",
+    "legend.planned": "Voraussichtlich",
     "tab.overview": "Übersicht",
     "tab.priority": "Priorität",
     "list.title": "Priorität",
@@ -293,6 +309,34 @@ function formatTime(hass, iso) {
 // The day a moment falls on in the server's time zone, as YYYY-MM-DD.
 function dayKey(hass, value) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: timeZone(hass), dateStyle: "short" }).format(new Date(value));
+}
+
+// How far the server's time zone is ahead of UTC at a moment, in ms.
+function zoneOffset(hass, ms) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timeZone(hass),
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(ms));
+  const v = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return Date.UTC(+v.year, +v.month - 1, +v.day, +v.hour, +v.minute, +v.second) - Math.floor(ms / 1000) * 1000;
+}
+
+// Midnight of a day in the server's time zone.
+function dayStart(hass, key) {
+  const [year, month, day] = key.split("-").map(Number);
+  const wall = Date.UTC(year, month - 1, day);
+  return wall - zoneOffset(hass, wall - zoneOffset(hass, wall));
+}
+
+function shiftDay(key, days) {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
 function dayLabel(hass, key) {
@@ -585,6 +629,27 @@ const STYLE = `
     background: var(--ss-on);
   }
   .forecast .run.forced { background: var(--ss-run); }
+  .forecast .run.blocked { background: var(--ss-locked); }
+  .forecast .run.planned { opacity: 0.45; }
+  .forecast .key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    color: var(--secondary-text-color, #727272);
+    font-size: var(--ha-font-size-s, 13px);
+  }
+  .forecast .key span { display: inline-flex; align-items: center; gap: 6px; }
+  .forecast .key i {
+    display: inline-block;
+    width: 18px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--ss-on);
+  }
+  .forecast .key i.forced { background: var(--ss-run); }
+  .forecast .key i.blocked { background: var(--ss-locked); }
+  .forecast .key i.planned { opacity: 0.45; }
+  .forecast .key i.neutral { background: var(--secondary-text-color, #727272); }
   .forecast .legend {
     display: flex;
     justify-content: space-between;
@@ -703,6 +768,8 @@ class SolarSurplusPanel extends HTMLElement {
     // The day the forecast shows; null follows today.
     this._day = null;
     this._tab = storedTab();
+    // Past runs per day, read from the history.
+    this._history = {};
   }
 
   set hass(hass) {
@@ -958,19 +1025,28 @@ class SolarSurplusPanel extends HTMLElement {
     const hass = this._hass;
     const card = h("div", { class: "card forecast" });
     const periods = this._state.decision?.forecast || [];
-    if (!this._state.has_forecast || !periods.length) {
+    if (!this._state.has_forecast && !Object.values(this._state.consumers || {}).length) {
       card.append(h("h2", { text: t(hass, "card.forecast") }), h("div", { class: "hint", text: t(hass, "forecast.none") }));
       return card;
     }
     const now = Date.now();
     const today = dayKey(hass, now);
-    const days = [...new Set(periods.map((p) => dayKey(hass, p.start)))].sort();
+    const past = Array.from({ length: HISTORY_DAYS }, (_, i) => shiftDay(today, i - HISTORY_DAYS));
+    const days = [...new Set([...past, today, ...periods.map((p) => dayKey(hass, p.start))])].sort();
     if (!days.includes(this._day)) this._day = null;
     const day = this._day || today;
     const index = days.indexOf(day);
     card.append(h("div", { class: "head" }, h("h2", { text: t(hass, "card.forecast") }), this._dayNav(day, today, days, index)));
 
     const shown = periods.filter((p) => dayKey(hass, p.start) === day);
+    // The forecast's periods are the axis; a day without them gets hours.
+    let bounds = shown.map((p) => [new Date(p.start).getTime(), new Date(p.end).getTime()]);
+    if (!bounds.length) {
+      const end = dayStart(hass, shiftDay(day, 1));
+      for (let start = dayStart(hass, day); start < end; start += 3600000) bounds.push([start, Math.min(start + 3600000, end)]);
+    }
+    const first = bounds[0][0];
+    const last = bounds[bounds.length - 1][1];
     const isToday = day === today;
     const total = shown.reduce((sum, p) => {
       const start = isToday ? Math.max(new Date(p.start).getTime(), now) : new Date(p.start).getTime();
@@ -984,7 +1060,7 @@ class SolarSurplusPanel extends HTMLElement {
     const width = 480;
     const height = 120;
     const plot = height;
-    const slot = width / Math.max(shown.length, 1);
+    const slot = width / bounds.length;
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
@@ -994,8 +1070,7 @@ class SolarSurplusPanel extends HTMLElement {
     shown.forEach((p, i) => {
       const barHeight = (p.watts / peak) * (plot - 4);
       const rect = document.createElementNS(ns, "rect");
-      const past = new Date(p.end).getTime() <= now;
-      rect.setAttribute("class", `bar${past ? " past" : ""}`);
+      rect.setAttribute("class", `bar${new Date(p.end).getTime() <= now ? " past" : ""}`);
       rect.setAttribute("x", String(i * slot + 1));
       rect.setAttribute("y", String(plot - barHeight));
       rect.setAttribute("width", String(Math.max(slot - 2, 1)));
@@ -1005,48 +1080,52 @@ class SolarSurplusPanel extends HTMLElement {
       rect.append(title);
       svg.append(rect);
     });
-    const y = plot - (threshold / peak) * (plot - 4);
-    const line = document.createElementNS(ns, "line");
-    line.setAttribute("class", "threshold");
-    line.setAttribute("x1", "0");
-    line.setAttribute("x2", String(width));
-    line.setAttribute("y1", String(y));
-    line.setAttribute("y2", String(y));
-    line.setAttribute("vector-effect", "non-scaling-stroke");
-    svg.append(line);
+    if (shown.length) {
+      const y = plot - (threshold / peak) * (plot - 4);
+      const line = document.createElementNS(ns, "line");
+      line.setAttribute("class", "threshold");
+      line.setAttribute("x1", "0");
+      line.setAttribute("x2", String(width));
+      line.setAttribute("y1", String(y));
+      line.setAttribute("y2", String(y));
+      line.setAttribute("vector-effect", "non-scaling-stroke");
+      svg.append(line);
+    }
     // The hours go below in HTML: the SVG stretches to the card's width, and
     // text inside it would stretch along.
-    const every = Math.max(1, Math.ceil(shown.length / 8));
+    const every = Math.max(1, Math.ceil(bounds.length / 8));
     const hours = h("div", { class: "hours" });
-    shown.forEach((p, i) => hours.append(h("span", { text: i % every === 0 ? hourLabel(hass, p.start) : "" })));
+    bounds.forEach(([start], i) => hours.append(h("span", { text: i % every === 0 ? hourLabel(hass, start) : "" })));
 
-    const bounds = shown.map((p) => [new Date(p.start).getTime(), new Date(p.end).getTime()]);
     const at = (value) => {
       const time = new Date(value).getTime();
-      if (!bounds.length || time <= bounds[0][0]) return 0;
+      if (time <= first) return 0;
       for (let i = 0; i < bounds.length; i++) {
         const [start, end] = bounds[i];
         if (time <= end) return (i + Math.max(0, time - start) / (end - start)) / bounds.length;
       }
       return 1;
     };
-    const chart = h("div", { class: "chart" }, svg, hours, this._renderPlan(at, bounds));
-    if (isToday && bounds.length) {
+    const chart = h("div", { class: "chart" });
+    if (shown.length) chart.append(svg);
+    else chart.append(h("div", { class: "hint", text: t(hass, this._state.has_forecast ? "forecast.no_forecast" : "forecast.none") }));
+    chart.append(hours, this._renderTracks(at, first, last, now));
+    if (isToday) {
       const marker = h("div", { class: "now-line", title: formatTime(hass, new Date(now).toISOString()) });
       marker.style.left = `${at(now) * 100}%`;
       chart.append(marker);
     }
-    card.append(
-      chart,
-      h(
-        "div",
-        { class: "legend" },
-        h("span", {
-          text: t(hass, isToday ? "forecast.remaining" : "forecast.total", { value: formatEnergy(hass, total) }),
-        }),
-        h("span", { text: `– – ${t(hass, "forecast.threshold")} (${formatPower(hass, threshold)})` })
-      )
+    const legend = h("div", { class: "legend" });
+    legend.append(
+      h("span", {
+        text: shown.length
+          ? t(hass, isToday ? "forecast.remaining" : "forecast.total", { value: formatEnergy(hass, total) })
+          : "",
+      })
     );
+    if (shown.length) legend.append(h("span", { text: `– – ${t(hass, "forecast.threshold")} (${formatPower(hass, threshold)})` }));
+    card.append(chart, legend);
+    if (first < now) this._loadHistory(day, first, Math.min(last, now), isToday);
     return card;
   }
 
@@ -1078,30 +1157,103 @@ class SolarSurplusPanel extends HTMLElement {
     );
   }
 
-  // One track per consumer under the bars, on the same time axis: when the
-  // forecast expects it to run.
-  _renderPlan(at, bounds) {
+  // Read what ran on a day from the history of the status and signal sensors,
+  // once for a past day and every minute for today.
+  async _loadHistory(day, start, end, isToday) {
+    const cached = this._history[day];
+    if (cached && (cached.loading || !isToday || Date.now() - cached.at < HISTORY_REFRESH)) return;
+    const consumers = this._state.consumers || {};
+    const entities = Object.values(consumers).flatMap((c) => [c.status_entity, c.signal_entity]).filter(Boolean);
+    if (!entities.length || !this._hass?.callWS) return;
+    this._history[day] = { ...(cached || {}), loading: true };
+    try {
+      const result = await this._hass.callWS({
+        type: "history/history_during_period",
+        start_time: new Date(start).toISOString(),
+        end_time: new Date(end).toISOString(),
+        entity_ids: entities,
+        minimal_response: true,
+        no_attributes: true,
+        significant_changes_only: false,
+      });
+      this._history[day] = { at: Date.now(), runs: this._runs(result, start, end) };
+    } catch (err) {
+      this._history[day] = { at: Date.now(), runs: cached?.runs || {} };
+    }
+    if (!this._dragId) this._render();
+  }
+
+  // The history as runs per consumer: when it was on, forced or locked.
+  _runs(result, start, end) {
+    const runs = {};
+    for (const [id, consumer] of Object.entries(this._state.consumers || {})) {
+      const entity = consumer.signal_entity || consumer.status_entity;
+      const rows = result?.[entity] || [];
+      const kind = (state) => {
+        if (consumer.signal_entity) {
+          return { recommended: "on", forced: "forced", blocked: "blocked" }[state];
+        }
+        return { on: "on", running: "on", locked: "blocked" }[state];
+      };
+      const list = [];
+      rows.forEach((row, i) => {
+        const type = kind(row.s);
+        if (!type) return;
+        const from = Math.max((row.lu ?? row.lc ?? 0) * 1000, start);
+        const next = rows[i + 1];
+        const to = Math.min(next ? (next.lu ?? next.lc) * 1000 : end, end);
+        if (to <= from) return;
+        // A reload leaves the sensor unavailable for a moment; a run goes on
+        // across such a gap.
+        const previous = list[list.length - 1];
+        if (previous && previous.kind === type && from - previous.end < 60000) previous.end = to;
+        else list.push({ start: from, end: to, kind: type });
+      });
+      runs[id] = list;
+    }
+    return runs;
+  }
+
+  // One track per consumer under the bars, on the same time axis: what ran,
+  // from the history, and what the forecast expects to run.
+  _renderTracks(at, first, last, now) {
     const hass = this._hass;
     const plans = this._state.decision?.plan || {};
     const consumers = this._state.consumers || {};
+    const ran = this._history[dayKey(hass, first)]?.runs || {};
     const box = h("div", { class: "plan" });
-    if (!bounds.length) return box;
-    const first = bounds[0][0];
-    const last = bounds[bounds.length - 1][1];
-    const inDay = (w) => new Date(w.end).getTime() > first && new Date(w.start).getTime() < last;
-    const rows = this._order().filter((id) => consumers[id] && (plans[id]?.windows || []).some(inDay));
+    const segments = (id) => {
+      const planned = (plans[id]?.windows || [])
+        .filter((w) => new Date(w.end).getTime() > Math.max(first, now) && new Date(w.start).getTime() < last)
+        .map((w) => ({
+          start: Math.max(new Date(w.start).getTime(), now),
+          end: new Date(w.end).getTime(),
+          kind: { 4: "forced", 1: "blocked" }[w.level] || "on",
+          planned: true,
+        }));
+      return [...(ran[id] || []), ...planned];
+    };
+    const rows = this._order()
+      .filter((id) => consumers[id])
+      .map((id) => [id, segments(id)])
+      .filter(([, list]) => list.length);
     if (!rows.length) return box;
     box.append(h("h3", { text: t(hass, "forecast.plan") }));
-    for (const id of rows) {
+    const kinds = new Set();
+    let anyPlanned = false;
+    let anyRan = false;
+    for (const [id, list] of rows) {
       const track = h("div", { class: "track" });
-      for (const w of plans[id].windows.filter(inDay)) {
-        const left = at(w.start);
-        const right = at(w.end);
+      for (const segment of list) {
+        const left = at(segment.start);
+        const right = at(segment.end);
         if (right <= left) continue;
-        const level = SIGNAL_LEVELS[w.level];
+        kinds.add(segment.kind);
+        if (segment.planned) anyPlanned = true;
+        else anyRan = true;
         const run = h("div", {
-          class: `run${level === "forced" ? " forced" : ""}`,
-          title: `${formatTime(hass, w.start)}–${formatTime(hass, w.end)}${level ? ` · ${t(hass, `signal.${level}`)}` : ""}`,
+          class: `run ${segment.kind}${segment.planned ? " planned" : ""}`,
+          title: `${formatTime(hass, new Date(segment.start).toISOString())}–${formatTime(hass, new Date(segment.end).toISOString())} · ${t(hass, `legend.${segment.kind}`)}`,
         });
         run.style.left = `${left * 100}%`;
         run.style.width = `${(right - left) * 100}%`;
@@ -1109,6 +1261,13 @@ class SolarSurplusPanel extends HTMLElement {
       }
       box.append(h("div", { class: "plan-row" }, h("div", { class: "name", text: consumers[id].title }), track));
     }
+    const key = h("div", { class: "key" });
+    for (const kind of ["on", "forced", "blocked"]) {
+      if (kinds.has(kind)) key.append(h("span", {}, h("i", { class: kind }), t(hass, `legend.${kind}`)));
+    }
+    if (anyRan) key.append(h("span", {}, h("i", { class: "neutral" }), t(hass, "legend.ran")));
+    if (anyPlanned) key.append(h("span", {}, h("i", { class: "neutral planned" }), t(hass, "legend.planned")));
+    box.append(key);
     return box;
   }
 

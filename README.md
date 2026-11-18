@@ -225,8 +225,11 @@ remembers which one was open last. **Overview** shows:
   is handed out and what is left
 - the forecast for a whole day as bars, today by default with a line at the
   current time, against the line of base load and reserve that a forecast hour
-  has to clear before it counts as surplus, and below it when each consumer is
-  expected to run, see [Plan](#plan). The arrows step through the days the
+  has to clear before it counts as surplus
+- below it, one track per consumer: what ran, from the history of its status
+  or signal sensor, and what is expected to run, see [Plan](#plan), lighter.
+  Green is on or recommended, blue forced, red locked or blocked, and a legend
+  says so. The arrows step through the last seven days and the days the
   forecast covers, and *Today* goes back
 
 **Priority** shows every consumer in priority order, with what it is doing, why,
