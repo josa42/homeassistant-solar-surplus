@@ -622,7 +622,18 @@ const STYLE = `
   .forecast .plot > svg { display: block; width: 100%; height: 120px; }
   .forecast .grid { stroke: var(--divider-color, rgba(0, 0, 0, 0.12)); }
   .forecast .axis { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
-  .forecast .track .now-line { top: -3px; bottom: -3px; }
+  /* Text the line of the current time passes behind. */
+  .forecast .axis span,
+  .forecast .hours b,
+  .forecast .plan h3,
+  .forecast .plan-row .name {
+    position: relative;
+    z-index: 2;
+    width: fit-content;
+    background: var(--ha-card-background, var(--card-background-color, #fff));
+  }
+  .forecast .hours b { font-weight: inherit; padding: 0 2px; }
+  .forecast .axis span { position: absolute; }
   .forecast .axis span {
     position: absolute;
     left: 0;
@@ -1203,7 +1214,7 @@ class SolarSurplusPanel extends HTMLElement {
     // text inside it would stretch along.
     const every = Math.max(1, Math.ceil(bounds.length / 8));
     const hours = h("div", { class: "hours" });
-    bounds.forEach(([start], i) => hours.append(h("span", { text: i % every === 0 ? hourLabel(hass, start) : "" })));
+    bounds.forEach(([start], i) => hours.append(h("span", {}, i % every === 0 ? h("b", { text: hourLabel(hass, start) }) : "")));
 
     const chart = h("div", { class: "chart" });
     if (shown.length || soc.length || expected.length) {
@@ -1239,11 +1250,11 @@ class SolarSurplusPanel extends HTMLElement {
         }
         box.append(right);
       }
-      if (isToday) box.append(this._nowLine(at(now), now));
       chart.append(box);
     }
     if (!shown.length) chart.append(h("div", { class: "hint", text: t(hass, this._state.has_forecast ? "forecast.no_forecast" : "forecast.none") }));
-    chart.append(hours, this._renderTracks(at, first, last, now, isToday));
+    chart.append(hours, this._renderTracks(at, first, last, now));
+    if (isToday) chart.append(this._nowLine(at(now), now));
     const legend = h("div", { class: "legend" });
     legend.append(
       h("span", {
@@ -1374,15 +1385,15 @@ class SolarSurplusPanel extends HTMLElement {
 
   // One track per consumer under the bars, on the same time axis: what ran,
   // from the history, and what the forecast expects to run.
-  // The current time, as a line over the bars or a mark on a track; never
-  // across the labels and names between them.
+  // The current time, through the bars and the tracks; the text on the way
+  // lies over it.
   _nowLine(x, now) {
     const line = h("div", { class: "now-line", title: formatTime(this._hass, new Date(now).toISOString()) });
     line.style.left = `${x * 100}%`;
     return line;
   }
 
-  _renderTracks(at, first, last, now, isToday) {
+  _renderTracks(at, first, last, now) {
     const hass = this._hass;
     const plans = this._state.decision?.plan || {};
     const consumers = this._state.consumers || {};
@@ -1410,7 +1421,6 @@ class SolarSurplusPanel extends HTMLElement {
     let anyRan = false;
     for (const [id, list] of rows) {
       const track = h("div", { class: "track" });
-      if (isToday) track.append(this._nowLine(at(now), now));
       for (const segment of list) {
         const left = at(segment.start);
         const right = at(segment.end);

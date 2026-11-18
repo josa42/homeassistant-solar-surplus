@@ -8,8 +8,8 @@
   with hours of nothing, so the plan and the battery's expected charge go
   through the night instead of jumping to the morning.
 - The panel's forecast runs from midnight to midnight also where the forecast
-  leaves the night out, and the line of the current time stays off the axis
-  labels and the consumers' names.
+  leaves the night out, and the line of the current time passes behind the
+  axis labels and the consumers' names instead of over them.
 
 ## 0.3.0 - 2026-11-18
 
