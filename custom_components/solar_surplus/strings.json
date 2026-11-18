@@ -20,15 +20,17 @@
           "base_load": "Base load"
         },
         "data_description": {
-          "grid_power": "The meter at the grid connection. By default positive means drawing from the grid.",
-          "battery_power": "Optional. By default positive means the battery discharges, as in the energy dashboard. Inverters differ: with no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts.",
-          "battery_soc": "Optional. Without it, what the battery charges with is never handed out.",
+          "grid_power": "Optional with the energy dashboard: left empty, its grid power meter is used. Otherwise the meter at the grid connection; by default positive means drawing from the grid.",
+          "grid_export_positive": "Only for a sensor chosen here; the energy dashboard's counts positive when drawing.",
+          "battery_power": "Optional; left empty, the energy dashboard's is used. By default positive means the battery discharges, as in the energy dashboard. Inverters differ: with no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts.",
+          "battery_discharge_positive": "Only for a sensor chosen here; the energy dashboard's counts positive when discharging.",
+          "battery_soc": "Optional; left empty, the energy dashboard's is used. Without any, what the battery charges with is never handed out.",
           "battery_target_soc": "Below this charge, what the battery charges with is not handed out to consumers.",
           "battery_min_soc": "At or below this charge, drawing from the grid locks SG Ready heat pumps and blocks signals.",
           "battery_max_charge_power": "Optional. Known, the part of it the battery does not use yet is held back for it while it is below the charge above.",
-          "battery_capacity": "Optional. Known, the plan follows the battery's charge through the forecast, and the panel draws it.",
+          "battery_capacity": "Optional; left empty, the energy dashboard's is used. Known, the plan follows the battery's charge through the forecast, and the panel draws it.",
           "signal_blocked": "With the battery empty or none, drawing this much from the grid locks SG Ready heat pumps and blocks signals.",
-          "forecast_entries": "Optional. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
+          "forecast_entries": "Optional; left empty, the energy dashboard's solar forecast is used. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
           "reserve": "Held back from the surplus. A consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid.",
           "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this. With grid and solar in the energy dashboard, it is learned for each hour of the day, and this counts only for hours without enough history."
         }
@@ -36,6 +38,9 @@
     },
     "abort": {
       "single_instance_allowed": "Solar Surplus is already set up."
+    },
+    "error": {
+      "no_grid_power": "Choose the grid power, or add a grid power meter to the energy dashboard."
     }
   },
   "options": {
@@ -65,15 +70,17 @@
           "base_load": "Base load"
         },
         "data_description": {
-          "grid_power": "The meter at the grid connection. By default positive means drawing from the grid.",
-          "battery_power": "Optional. By default positive means the battery discharges, as in the energy dashboard. Inverters differ: with no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts.",
-          "battery_soc": "Optional. Without it, what the battery charges with is never handed out.",
+          "grid_power": "Optional with the energy dashboard: left empty, its grid power meter is used. Otherwise the meter at the grid connection; by default positive means drawing from the grid.",
+          "grid_export_positive": "Only for a sensor chosen here; the energy dashboard's counts positive when drawing.",
+          "battery_power": "Optional; left empty, the energy dashboard's is used. By default positive means the battery discharges, as in the energy dashboard. Inverters differ: with no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts.",
+          "battery_discharge_positive": "Only for a sensor chosen here; the energy dashboard's counts positive when discharging.",
+          "battery_soc": "Optional; left empty, the energy dashboard's is used. Without any, what the battery charges with is never handed out.",
           "battery_target_soc": "Below this charge, what the battery charges with is not handed out to consumers.",
           "battery_min_soc": "At or below this charge, drawing from the grid locks SG Ready heat pumps and blocks signals.",
           "battery_max_charge_power": "Optional. Known, the part of it the battery does not use yet is held back for it while it is below the charge above.",
-          "battery_capacity": "Optional. Known, the plan follows the battery's charge through the forecast, and the panel draws it.",
+          "battery_capacity": "Optional; left empty, the energy dashboard's is used. Known, the plan follows the battery's charge through the forecast, and the panel draws it.",
           "signal_blocked": "With the battery empty or none, drawing this much from the grid locks SG Ready heat pumps and blocks signals.",
-          "forecast_entries": "Optional. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
+          "forecast_entries": "Optional; left empty, the energy dashboard's solar forecast is used. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
           "reserve": "Held back from the surplus. A consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid.",
           "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this. With grid and solar in the energy dashboard, it is learned for each hour of the day, and this counts only for hours without enough history."
         }
@@ -88,6 +95,9 @@
           "notify_target": "A notify action or entity, such as your phone's. Left empty, a notification in Home Assistant's sidebar."
         }
       }
+    },
+    "error": {
+      "no_grid_power": "Choose the grid power, or add a grid power meter to the energy dashboard."
     }
   },
   "config_subentries": {

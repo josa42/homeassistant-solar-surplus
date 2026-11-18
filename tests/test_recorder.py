@@ -1,4 +1,4 @@
-"""The base load, learned from a recorder with the energy dashboard's history."""
+"""With a recorder: the base load learned, and the hub read from the energy dashboard."""
 
 from __future__ import annotations
 
@@ -12,13 +12,20 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.components.recorder.common import (
     async_wait_recording_done,
 )
 
 from custom_components.solar_surplus.base_load import BaseLoadReader, Tracked
-from custom_components.solar_surplus.const import DOMAIN
+from custom_components.solar_surplus.const import (
+    CONF_BATTERY_CAPACITY,
+    CONF_GRID_POWER,
+    DOMAIN,
+    TITLE,
+)
 
+from .conftest import GRID
 from .house import spec
 
 HOUR = timedelta(hours=1)
@@ -129,3 +136,44 @@ async def test_without_a_solar_source_nothing_is_learned(hass: HomeAssistant) ->
     await async_setup_component(hass, "energy", {})
     reader = BaseLoadReader(hass, "entry")
     assert not (await reader.async_get(dt_util.now(), {})).learned
+
+
+async def test_the_hub_takes_what_it_leaves_empty_from_the_energy_dashboard(
+    hass: HomeAssistant, setup_entry
+) -> None:
+    await async_setup_component(hass, "energy", {})
+    manager = await async_get_manager(hass)
+    grid = {
+        "type": "grid",
+        "stat_energy_from": "sensor.grid_import",
+        "stat_energy_to": None,
+        "stat_cost": None,
+        "stat_compensation": None,
+        "entity_energy_price": None,
+        "number_energy_price": None,
+        "entity_energy_price_export": None,
+        "number_energy_price_export": None,
+        "cost_adjustment_day": 0,
+        "power_config": {"stat_rate": GRID},
+    }
+    await manager.async_update({"energy_sources": [grid]})
+    entry = MockConfigEntry(domain=DOMAIN, title=TITLE, data={})
+    entry.add_to_hass(hass)
+    hass.states.async_set(GRID, "-1500")
+    coordinator = await setup_entry(entry)
+
+    assert coordinator.values[CONF_GRID_POWER] == GRID
+    assert coordinator.data.grid == -1500
+
+    battery = {
+        "type": "battery",
+        "stat_energy_from": "sensor.discharge",
+        "stat_energy_to": "sensor.charge",
+        "stat_soc": "sensor.battery_soc",
+        "capacity": 5,
+    }
+    await manager.async_update({"energy_sources": [grid, battery]})
+    await hass.async_block_till_done()
+
+    assert entry.runtime_data is not coordinator, "it reloads"
+    assert entry.runtime_data.values[CONF_BATTERY_CAPACITY] == 5

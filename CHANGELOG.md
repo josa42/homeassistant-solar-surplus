@@ -16,6 +16,13 @@
 - **Battery capacity**: known, the plan follows the battery's charge through
   the forecast, charging it first below its target, and the panel continues the
   line of its charge with what the plan expects.
+- **From the energy dashboard**: the grid power, the battery power, charge
+  and capacity, and the solar forecast are read from the energy dashboard
+  when left empty, and followed when it changes. The grid power is no longer
+  required when the dashboard has it.
+- The panel's forecast has a power axis, and a charge axis next to the
+  battery's line, and shows every consumer, also one that did not run and is
+  not expected to.
 - **Learned base load**: with grid and solar in the energy dashboard, the plan
   learns the base load for each hour of the day from the past days, less what
   Solar Surplus switched on. The setting counts for hours without enough

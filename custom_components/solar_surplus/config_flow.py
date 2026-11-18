@@ -82,6 +82,7 @@ from .const import (
     TITLE,
     AdapterType,
 )
+from .energy_dashboard import async_preferences, hub_values
 
 #: The keys of the first step, which the options flow changes as one.
 HUB_KEYS = (
@@ -166,6 +167,15 @@ def _prune(user_input: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+async def _async_check_hub(hass, user_input: dict[str, Any]) -> dict[str, str]:
+    """The grid power is needed, from here or from the energy dashboard."""
+    if user_input.get(CONF_GRID_POWER):
+        return {}
+    if hub_values(await async_preferences(hass)).get(CONF_GRID_POWER):
+        return {}
+    return {CONF_GRID_POWER: "no_grid_power"}
+
+
 ################################################################################
 # Schemas
 ################################################################################
@@ -176,9 +186,7 @@ def hub_schema(
 ) -> vol.Schema:
     """The house: grid, battery, forecast and the margins."""
     fields: dict[Any, Any] = {
-        vol.Required(
-            CONF_GRID_POWER, default=values.get(CONF_GRID_POWER, vol.UNDEFINED)
-        ): _entity("sensor", "power"),
+        _suggest(CONF_GRID_POWER, values): _entity("sensor", "power"),
         _default(CONF_GRID_EXPORT_POSITIVE, values, False): _bool(),
         _suggest(CONF_BATTERY_POWER, values): _entity("sensor", "power"),
         _default(
@@ -440,10 +448,17 @@ class SolarSurplusConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """The meters and the forecast."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(title=TITLE, data=_prune(user_input))
+            errors = await _async_check_hub(self.hass, user_input)
+            if not errors:
+                return self.async_create_entry(title=TITLE, data=_prune(user_input))
         options = await forecast_entry_options(self.hass)
-        return self.async_show_form(step_id="user", data_schema=hub_schema({}, options))
+        return self.async_show_form(
+            step_id="user",
+            data_schema=hub_schema(user_input or {}, options),
+            errors=errors,
+        )
 
     @classmethod
     @callback
@@ -498,11 +513,16 @@ class SolarSurplusOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """The meters and the forecast."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self._save(user_input, HUB_KEYS)
+            errors = await _async_check_hub(self.hass, user_input)
+            if not errors:
+                return self._save(user_input, HUB_KEYS)
         options = await forecast_entry_options(self.hass)
         return self.async_show_form(
-            step_id="inputs", data_schema=hub_schema(self._values(), options)
+            step_id="inputs",
+            data_schema=hub_schema(user_input or self._values(), options),
+            errors=errors,
         )
 
     async def async_step_test_mode(

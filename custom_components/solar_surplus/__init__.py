@@ -22,11 +22,15 @@ from .const import (
     PANEL_VERSION,
 )
 from .coordinator import SolarSurplusConfigEntry, SolarSurplusCoordinator
+from .energy_dashboard import async_preferences, hub_values
 from .store import SolarSurplusStore
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS: list[Platform] = [Platform.SELECT, Platform.SENSOR, Platform.SWITCH]
+
+#: Whether the session already listens to the energy dashboard.
+DASHBOARD_LISTENER = f"{DOMAIN}_energy_dashboard_listener"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -47,13 +51,15 @@ async def async_setup_entry(
     """Set up Solar Surplus from a config entry."""
     store = SolarSurplusStore(hass)
     await store.async_load(entry.subentries)
-    coordinator = SolarSurplusCoordinator(hass, entry, store)
+    dashboard = hub_values(await async_preferences(hass))
+    coordinator = SolarSurplusCoordinator(hass, entry, store, dashboard)
     entry.runtime_data = coordinator
     coordinator.async_register_hub_device()
     await coordinator.async_config_entry_first_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     coordinator.async_start_watching()
     entry.async_on_unload(entry.add_update_listener(_async_reload))
+    await _async_follow_energy_dashboard(hass)
     await _async_register_panel(hass)
     return True
 
@@ -73,6 +79,28 @@ async def async_unload_entry(
 async def _async_reload(hass: HomeAssistant, entry: SolarSurplusConfigEntry) -> None:
     """Reload when the options or the consumers change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def _async_follow_energy_dashboard(hass: HomeAssistant) -> None:
+    """Reload when the energy dashboard changes what the hub takes from it.
+
+    Its listeners cannot be removed again, so there is one for the session,
+    and it finds the entry when it is called.
+    """
+    if hass.data.get(DASHBOARD_LISTENER) or "energy" not in hass.config.components:
+        return
+    from homeassistant.components.energy.data import (  # noqa: PLC0415
+        async_get_manager,
+    )
+
+    async def _changed() -> None:
+        dashboard = hub_values(await async_preferences(hass))
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            if entry.runtime_data.dashboard != dashboard:
+                hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    (await async_get_manager(hass)).async_listen_updates(_changed)
+    hass.data[DASHBOARD_LISTENER] = True
 
 
 async def _async_register_panel(hass: HomeAssistant) -> None:

@@ -40,7 +40,8 @@ The button above does this for you. Without it:
 
 1. Go to **Settings** → **Devices & Services**
 2. Click **+ Add Integration** and search for "Solar Surplus"
-3. Choose the grid power sensor, and the battery and forecast if you have them
+3. Choose the grid power sensor, and the battery and forecast if you have them.
+   With the energy dashboard set up, leave them empty: they are read from it
 4. Add each consumer through **Add a consumer** on the integration's page
 
 The meters and where test mode sends its notifications can be changed later under **Configure**, each consumer under its own **Change this
@@ -48,9 +49,16 @@ consumer**.
 
 ### The house
 
+The energy dashboard already knows most of the house. What is left empty here
+is read from it when Solar Surplus starts, and again whenever the dashboard
+changes: the grid power and the battery power, with the dashboard's signs
+(positive when drawing and when discharging), the battery charge and capacity,
+and the solar forecast. A meter is only taken when the dashboard has one of
+its kind. Chosen here, a sensor wins, and the sign options apply to it.
+
 | Setting | Default | What it does |
 | --- | --- | --- |
-| Grid power | | The meter at the grid connection. Positive means drawing from the grid, unless *Grid power is positive when exporting* is on. |
+| Grid power | | The meter at the grid connection, needed here or in the energy dashboard. Positive means drawing from the grid, unless *Grid power is positive when exporting* is on. |
 | Battery power | | Optional. Positive means the battery discharges, as in the energy dashboard. Inverters differ: turn off *Battery power is positive when discharging* if yours counts charging as positive. With no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts. |
 | Battery charge | | Optional. The battery's state of charge. |
 | Battery first up to | 90 % | Below this charge, what the battery charges with is not handed out. |

@@ -52,6 +52,7 @@ from .const import (
     EnergySignal,
     SgState,
 )
+from .energy_dashboard import merge
 from .engine import SG_KINDS, decide
 from .forecast import ForecastReader
 from .models import (
@@ -123,6 +124,7 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         hass: HomeAssistant,
         entry: SolarSurplusConfigEntry,
         store: SolarSurplusStore,
+        dashboard: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             hass,
@@ -137,7 +139,11 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         )
         self.entry = entry
         self.store = store
-        self.values: dict[str, Any] = {**entry.data, **entry.options}
+        #: What the energy dashboard has for the inputs the hub leaves empty.
+        self.dashboard = dashboard or {}
+        self.values: dict[str, Any] = merge(
+            {**entry.data, **entry.options}, self.dashboard
+        )
         self.settings = hub_settings(self.values)
         self.forecast = ForecastReader(hass, self.values.get(CONF_FORECAST_ENTRIES, []))
         self.base_load_reader = BaseLoadReader(hass, entry.entry_id)

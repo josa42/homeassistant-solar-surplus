@@ -20,15 +20,17 @@
           "base_load": "Grundlast"
         },
         "data_description": {
-          "grid_power": "Der Zähler am Netzanschluss. Standardmäßig bedeutet positiv Bezug aus dem Netz.",
-          "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie entlädt, wie im Energie-Dashboard. Wechselrichter zählen unterschiedlich: Ohne Sonne und ohne Netzbezug entlädt die Batterie, daran lässt sich die Richtung des Sensors ablesen.",
-          "battery_soc": "Optional. Ohne ihn wird die Ladeleistung der Batterie nie verteilt.",
+          "grid_power": "Optional mit dem Energie-Dashboard: leer gelassen, wird dessen Netzleistung verwendet. Sonst der Zähler am Netzanschluss; standardmäßig bedeutet positiv Bezug aus dem Netz.",
+          "grid_export_positive": "Nur für einen hier gewählten Sensor; der des Energie-Dashboards zählt Bezug positiv.",
+          "battery_power": "Optional; leer gelassen, wird die des Energie-Dashboards verwendet. Standardmäßig bedeutet positiv, dass die Batterie entlädt, wie im Energie-Dashboard. Wechselrichter unterscheiden sich: ohne Sonne und ohne Netzbezug entlädt die Batterie, daran sieht man, wie der Sensor zählt.",
+          "battery_discharge_positive": "Nur für einen hier gewählten Sensor; der des Energie-Dashboards zählt Entladen positiv.",
+          "battery_soc": "Optional; leer gelassen, wird der des Energie-Dashboards verwendet. Ohne ihn wird, womit die Batterie lädt, nie verteilt.",
           "battery_target_soc": "Unter diesem Ladestand wird die Ladeleistung der Batterie nicht an Verbraucher verteilt.",
           "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug SG-Ready-Wärmepumpen und Signale.",
           "battery_max_charge_power": "Optional. Ist sie bekannt, wird der Teil, den die Batterie noch nicht nutzt, für sie zurückgehalten, solange sie unter dem Ladestand oben ist.",
-          "battery_capacity": "Optional. Ist sie bekannt, verfolgt der Plan den Ladestand der Batterie durch die Prognose, und das Panel zeigt ihn.",
+          "battery_capacity": "Optional; leer gelassen, wird die des Energie-Dashboards verwendet. Ist sie bekannt, verfolgt der Plan den Ladestand der Batterie durch die Prognose, und das Panel zeigt ihn.",
           "signal_blocked": "Bei leerer oder ohne Batterie sperrt so viel Netzbezug SG-Ready-Wärmepumpen und Signale.",
-          "forecast_entries": "Optional. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
+          "forecast_entries": "Optional; leer gelassen, wird die Solarprognose des Energie-Dashboards verwendet. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
           "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
           "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert. Mit Netz und Solar im Energie-Dashboard wird sie für jede Stunde des Tages gelernt, und dieser Wert gilt nur für Stunden ohne genug Verlauf."
         }
@@ -36,6 +38,9 @@
     },
     "abort": {
       "single_instance_allowed": "Solarüberschuss ist bereits eingerichtet."
+    },
+    "error": {
+      "no_grid_power": "Wähle die Netzleistung, oder füge dem Energie-Dashboard einen Zähler für die Netzleistung hinzu."
     }
   },
   "options": {
@@ -65,15 +70,17 @@
           "base_load": "Grundlast"
         },
         "data_description": {
-          "grid_power": "Der Zähler am Netzanschluss. Standardmäßig bedeutet positiv Bezug aus dem Netz.",
-          "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie entlädt, wie im Energie-Dashboard. Wechselrichter zählen unterschiedlich: Ohne Sonne und ohne Netzbezug entlädt die Batterie, daran lässt sich die Richtung des Sensors ablesen.",
-          "battery_soc": "Optional. Ohne ihn wird die Ladeleistung der Batterie nie verteilt.",
+          "grid_power": "Optional mit dem Energie-Dashboard: leer gelassen, wird dessen Netzleistung verwendet. Sonst der Zähler am Netzanschluss; standardmäßig bedeutet positiv Bezug aus dem Netz.",
+          "grid_export_positive": "Nur für einen hier gewählten Sensor; der des Energie-Dashboards zählt Bezug positiv.",
+          "battery_power": "Optional; leer gelassen, wird die des Energie-Dashboards verwendet. Standardmäßig bedeutet positiv, dass die Batterie entlädt, wie im Energie-Dashboard. Wechselrichter unterscheiden sich: ohne Sonne und ohne Netzbezug entlädt die Batterie, daran sieht man, wie der Sensor zählt.",
+          "battery_discharge_positive": "Nur für einen hier gewählten Sensor; der des Energie-Dashboards zählt Entladen positiv.",
+          "battery_soc": "Optional; leer gelassen, wird der des Energie-Dashboards verwendet. Ohne ihn wird, womit die Batterie lädt, nie verteilt.",
           "battery_target_soc": "Unter diesem Ladestand wird die Ladeleistung der Batterie nicht an Verbraucher verteilt.",
           "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug SG-Ready-Wärmepumpen und Signale.",
           "battery_max_charge_power": "Optional. Ist sie bekannt, wird der Teil, den die Batterie noch nicht nutzt, für sie zurückgehalten, solange sie unter dem Ladestand oben ist.",
-          "battery_capacity": "Optional. Ist sie bekannt, verfolgt der Plan den Ladestand der Batterie durch die Prognose, und das Panel zeigt ihn.",
+          "battery_capacity": "Optional; leer gelassen, wird die des Energie-Dashboards verwendet. Ist sie bekannt, verfolgt der Plan den Ladestand der Batterie durch die Prognose, und das Panel zeigt ihn.",
           "signal_blocked": "Bei leerer oder ohne Batterie sperrt so viel Netzbezug SG-Ready-Wärmepumpen und Signale.",
-          "forecast_entries": "Optional. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
+          "forecast_entries": "Optional; leer gelassen, wird die Solarprognose des Energie-Dashboards verwendet. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
           "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
           "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert. Mit Netz und Solar im Energie-Dashboard wird sie für jede Stunde des Tages gelernt, und dieser Wert gilt nur für Stunden ohne genug Verlauf."
         }
@@ -88,6 +95,9 @@
           "notify_target": "Eine Benachrichtigungsaktion oder -entität, etwa die deines Handys. Leer gelassen eine Benachrichtigung in der Seitenleiste von Home Assistant."
         }
       }
+    },
+    "error": {
+      "no_grid_power": "Wähle die Netzleistung, oder füge dem Energie-Dashboard einen Zähler für die Netzleistung hinzu."
     }
   },
   "config_subentries": {

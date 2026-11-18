@@ -27,6 +27,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, AdapterType, ConsumerState, EnergySignal
+from .energy_dashboard import async_preferences, energy_statistics
 from .models import ConsumerSpec
 
 _LOGGER = logging.getLogger(__name__)
@@ -191,7 +192,7 @@ class BaseLoadReader:
     ) -> BaseLoad:
         if "recorder" not in self._hass.config.components:
             return BaseLoad()
-        sources = await _async_sources(self._hass)
+        sources = energy_statistics(await async_preferences(self._hass))
         if sources is None:
             return BaseLoad()
         added, taken = sources
@@ -291,44 +292,6 @@ class BaseLoadReader:
             (a, b) for a, b, _ in runs(timeline.get(control or "", []), end, {"off": 1})
         ]
         return [(max(a, start), b) for a, b in stretches]
-
-
-async def _async_sources(hass: HomeAssistant) -> tuple[list[str], list[str]] | None:
-    """The statistics the house's draw is made of: added, and taken off.
-
-    None without a grid and a solar source in the energy dashboard.
-    """
-    if "energy" not in hass.config.components:
-        return None
-    from homeassistant.components.energy.data import (  # noqa: PLC0415
-        async_get_manager,
-    )
-
-    manager = await async_get_manager(hass)
-    prefs: dict[str, Any] = manager.data or {}
-    added: list[str] = []
-    taken: list[str] = []
-    grid = solar = False
-    for source in prefs.get("energy_sources", []):
-        kind = source.get("type")
-        if kind == "solar":
-            solar = True
-            added.append(source["stat_energy_from"])
-        elif kind == "battery":
-            added.append(source["stat_energy_from"])
-            taken.append(source["stat_energy_to"])
-        elif kind == "grid":
-            grid = True
-            imports = [source.get("stat_energy_from")]
-            exports = [source.get("stat_energy_to")]
-            # Older preferences give a grid lists of meters.
-            imports += [f.get("stat_energy_from") for f in source.get("flow_from", [])]
-            exports += [f.get("stat_energy_to") for f in source.get("flow_to", [])]
-            added += [s for s in imports if s]
-            taken += [s for s in exports if s]
-    if not (grid and solar):
-        return None
-    return added, taken
 
 
 def _column(rows: list[dict[str, Any]], key: str) -> dict[datetime, float]:

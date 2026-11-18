@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER
@@ -249,3 +250,28 @@ async def test_changing_a_consumer_keeps_its_kind(
     assert subentry.title == "Hot water"
     assert subentry.data[CONF_POWER] == 3000
     assert subentry.data[CONF_ADAPTER] == AdapterType.SWITCH.value
+
+
+async def test_the_grid_power_is_needed_from_somewhere(hass: HomeAssistant) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {CONF_GRID_POWER: "no_grid_power"}
+
+
+async def test_the_grid_power_can_come_from_the_energy_dashboard(
+    hass: HomeAssistant,
+) -> None:
+    prefs = {"energy_sources": [{"type": "grid", "stat_rate": GRID}]}
+    with patch(
+        "custom_components.solar_surplus.config_flow.async_preferences",
+        return_value=prefs,
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert CONF_GRID_POWER not in result["data"], "it is read when set up"
