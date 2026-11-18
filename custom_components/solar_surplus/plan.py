@@ -49,7 +49,9 @@ def make_plan(
     if not periods:
         return {}, []
     settings = inputs.settings
-    budgets = [p.watts - settings.base_load - settings.reserve for p in periods]
+    budgets = [
+        p.watts - inputs.base_load_at(p.start) - settings.reserve for p in periods
+    ]
     _battery_first(inputs, periods, budgets)
     available = list(budgets)
     by_id = {consumer.spec.id: consumer for consumer in consumers}
@@ -89,7 +91,7 @@ def _battery_first(
         hours = _hours(period, inputs.now, period.end)
         if hours <= 0:
             continue
-        spare = period.watts - settings.base_load
+        spare = period.watts - inputs.base_load_at(period.start)
         if spare > 0 and soc < settings.battery_target_soc:
             needed = (settings.battery_target_soc - soc) / 100 * capacity / hours
             charge = min(spare, settings.battery_max_charge or spare, needed)
@@ -114,7 +116,7 @@ def _charge(
     points = [(inputs.now, round(soc, 1))]
     for period, taken in zip(periods, used, strict=True):
         hours = _hours(period, inputs.now, period.end)
-        net = period.watts - settings.base_load - taken
+        net = period.watts - inputs.base_load_at(period.start) - taken
         if net > 0:
             net = min(net, settings.battery_max_charge or net)
         soc = min(max(soc + net * hours / capacity * 100, floor), 100.0)

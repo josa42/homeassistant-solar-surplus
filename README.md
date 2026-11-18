@@ -60,7 +60,7 @@ consumer**.
 | Blocked from grid import of | 500 W | Drawing this much from the grid with the battery empty, or without one, locks SG Ready heat pumps and blocks signals, if they are allowed to be. |
 | Solar forecast | | Optional. One or more config entries that provide a solar forecast for the energy dashboard. Several are added up. |
 | Reserve | 100 W | Held back from the surplus. It is also the hysteresis: a consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid. |
-| Base load | 400 W | What the house draws on its own. The expected surplus of an hour is its forecast minus this and the reserve. |
+| Base load | 400 W | What the house draws on its own. The expected surplus of an hour is its forecast minus this and the reserve. With grid and solar in the energy dashboard, it is [learned](#learned-base-load) for each hour of the day, and this counts only for hours without enough history. |
 
 ### Consumers
 
@@ -192,6 +192,29 @@ run as attributes. It is a forecast and no more: it knows nothing of clouds
 within the hour, of what else the house draws beyond its base load, or of
 losses in the battery.
 
+### Learned base load
+
+With grid and solar in the energy dashboard, the plan does not take the base
+load from the setting but learns it, once an hour, for each hour of the day:
+
+1. What the house drew in each past hour comes from the energy dashboard's
+   statistics: solar, plus what came from the grid and the battery, less what
+   went to them.
+2. What Solar Surplus switched on is taken off, as the history of the status
+   and signal sensors tells. It counts only for what it added: a consumer with
+   a power sensor for what that measured in the hour, any other for its power,
+   and SG Ready and signals for their power, and their power plus the extra
+   when forced. A heat pump's own running stays part of the base load, as the
+   plan does not book it either. In test mode, or with the control off,
+   nothing was switched, so nothing is taken off then; a signal is published
+   either way, so it always is.
+3. For each hour of the day, the median of the days the recorder has, up to
+   14, is what the plan expects. An hour needs three days of history; until
+   then, and without the energy dashboard, the setting counts.
+
+The panel's line of base load and reserve follows the hours, and the
+diagnostics list them.
+
 ### Test mode
 
 To see what Solar Surplus would do before it switches anything, turn on
@@ -233,8 +256,8 @@ remembers which one was open last. **Overview** shows:
 - the surplus (smoothed, and what it is right now), the grid, the battery, what
   is handed out and what is left
 - the forecast for a whole day as bars, today by default with a line at the
-  current time, against the line of base load and reserve that a forecast hour
-  has to clear before it counts as surplus, and with a battery SoC sensor the
+  current time, against the line of base load, learned or set, and reserve
+  that a forecast hour has to clear before it counts as surplus, and with a battery SoC sensor the
   battery's charge over the day from its history, on a scale of 0 to 100 %,
   and with its capacity the charge the [plan](#plan) expects, dashed
 - below it, one track per consumer: what ran, from the history of its status

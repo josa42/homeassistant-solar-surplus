@@ -118,6 +118,17 @@ def test_a_running_deferrable_is_planned_until_it_ends() -> None:
     assert plan.expected_off == T0 + 2 * HOUR
 
 
+def test_a_learned_base_load_counts_for_its_hour() -> None:
+    house = House(spec("rod", 1000), settings=HubSettings(reserve=0, base_load=500))
+    hour = T0.hour
+    plan = house.run(
+        0, forecast=forecast(1600, 1600, 1600), base_load={hour + 1: 800}
+    ).plan["rod"]
+    assert windows(plan) == [(0, 1, None), (2, 3, None)], (
+        "the learned hour leaves 800 W, the others the 1100 W the setting does"
+    )
+
+
 def battery(**changes) -> HubSettings:
     """A 10 kWh battery: 1 kWh is 10 %."""
     values = {

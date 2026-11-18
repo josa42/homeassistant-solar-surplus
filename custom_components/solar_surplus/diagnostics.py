@@ -30,5 +30,6 @@ async def async_get_config_entry_diagnostics(
             },
             "memories": coordinator.store.memories,
         },
+        "base_load_hours": coordinator.base_load.hours,
         "decision": decision.to_dict() if decision else None,
     }

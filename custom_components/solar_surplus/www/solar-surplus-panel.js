@@ -74,6 +74,7 @@ const STRINGS = {
     "forecast.none": "No forecast configured.",
     "forecast.remaining": "{value} left today",
     "forecast.threshold": "Base load and reserve",
+    "forecast.threshold_learned": "Learned base load and reserve",
     "forecast.soc": "Battery charge",
     "forecast.soc_expected": "Expected charge",
     "forecast.total": "{value} expected",
@@ -169,6 +170,7 @@ const STRINGS = {
     "forecast.none": "Keine Prognose eingerichtet.",
     "forecast.remaining": "heute noch {value}",
     "forecast.threshold": "Grundlast und Reserve",
+    "forecast.threshold_learned": "Gelernte Grundlast und Reserve",
     "forecast.soc": "Batterieladung",
     "forecast.soc_expected": "Erwartete Ladung",
     "forecast.total": "{value} erwartet",
@@ -625,7 +627,7 @@ const STYLE = `
   .forecast .hours span { flex: 1 1 0; min-width: 0; text-align: center; white-space: nowrap; overflow: visible; }
   .forecast .bar { fill: color-mix(in srgb, var(--warning-color, #ffa600) 70%, transparent); }
   .forecast .bar.past { fill: color-mix(in srgb, var(--warning-color, #ffa600) 35%, transparent); }
-  .forecast .threshold { stroke: var(--secondary-text-color, #727272); stroke-dasharray: 4 3; }
+  .forecast .threshold { fill: none; stroke: var(--secondary-text-color, #727272); stroke-dasharray: 4 3; }
   .forecast path.soc { fill: none; stroke: var(--ss-soc); stroke-width: 2; stroke-linejoin: round; }
   .forecast path.soc.planned { stroke-dasharray: 5 4; opacity: 0.8; }
   .forecast .legend .keys { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; }
@@ -1079,8 +1081,14 @@ class SolarSurplusPanel extends HTMLElement {
       return end > start ? sum + (p.watts * (end - start)) / 3600000 : sum;
     }, 0);
     const settings = this._state.settings || {};
-    const threshold = (settings.base_load || 0) + (settings.reserve || 0);
-    const peak = Math.max(threshold, ...periods.map((p) => p.watts), 1);
+    // The base load learned for each hour of the day, or the one set.
+    const learned = settings.base_load_hours || {};
+    const thresholdAt = (ms) => {
+      const hour = new Date(ms + zoneOffset(hass, ms)).getUTCHours();
+      return (learned[hour] ?? settings.base_load ?? 0) + (settings.reserve || 0);
+    };
+    const thresholds = bounds.map(([start]) => thresholdAt(start));
+    const peak = Math.max(...thresholds, ...periods.map((p) => p.watts), 1);
 
     const at = (value) => {
       const time = new Date(value).getTime();
@@ -1115,13 +1123,12 @@ class SolarSurplusPanel extends HTMLElement {
       svg.append(rect);
     });
     if (shown.length) {
-      const y = plot - (threshold / peak) * (plot - 4);
-      const line = document.createElementNS(ns, "line");
+      // A step per hour: what the hour has to clear.
+      const y = (value) => (plot - (value / peak) * (plot - 4)).toFixed(1);
+      const d = thresholds.map((value, i) => `${i ? "H" : "M"}${(i * slot).toFixed(1)}${i ? "V" : " "}${y(value)}`).join("");
+      const line = document.createElementNS(ns, "path");
       line.setAttribute("class", "threshold");
-      line.setAttribute("x1", "0");
-      line.setAttribute("x2", String(width));
-      line.setAttribute("y1", String(y));
-      line.setAttribute("y2", String(y));
+      line.setAttribute("d", `${d}H${width}`);
       line.setAttribute("vector-effect", "non-scaling-stroke");
       svg.append(line);
     }
@@ -1183,7 +1190,13 @@ class SolarSurplusPanel extends HTMLElement {
       })
     );
     const keys = h("span", { class: "keys" });
-    if (shown.length) keys.append(h("span", { text: `– – ${t(hass, "forecast.threshold")} (${formatPower(hass, threshold)})` }));
+    if (shown.length) {
+      const low = Math.min(...thresholds);
+      const high = Math.max(...thresholds);
+      const range = low === high ? formatPower(hass, low) : `${formatPower(hass, low)}–${formatPower(hass, high)}`;
+      const label = t(hass, Object.keys(learned).length ? "forecast.threshold_learned" : "forecast.threshold");
+      keys.append(h("span", { text: `– – ${label} (${range})` }));
+    }
     if (soc.length) {
       const latest = soc[soc.length - 1][1];
       keys.append(h("span", {}, h("i", { class: "soc" }), `${t(hass, "forecast.soc")} (${Math.round(latest)} %)`));

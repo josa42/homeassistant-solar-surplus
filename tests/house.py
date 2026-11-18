@@ -111,6 +111,7 @@ class House:
         battery: float | None = None,
         soc: float | None = None,
         forecast: tuple[ForecastPeriod, ...] = (),
+        base_load: dict[int, float] | None = None,
         control: bool = True,
         grid: float | None | str = "derive",
     ) -> Decision:
@@ -128,6 +129,7 @@ class House:
             forecast=forecast,
             control_enabled=control,
             settings=self.settings,
+            base_load=base_load or {},
         )
         consumers = [
             ConsumerInput(

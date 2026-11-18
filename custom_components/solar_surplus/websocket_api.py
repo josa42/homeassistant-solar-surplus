@@ -65,6 +65,8 @@ def panel_state(coordinator: SolarSurplusCoordinator) -> dict[str, Any]:
         "settings": {
             "reserve": settings.reserve,
             "base_load": settings.base_load,
+            # Learned, by hour of the day; the one above stands in for the rest.
+            "base_load_hours": coordinator.base_load.hours,
         },
     }
 

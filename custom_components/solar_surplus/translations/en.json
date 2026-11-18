@@ -30,7 +30,7 @@
           "signal_blocked": "With the battery empty or none, drawing this much from the grid locks SG Ready heat pumps and blocks signals.",
           "forecast_entries": "Optional. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
           "reserve": "Held back from the surplus. A consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid.",
-          "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this."
+          "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this. With grid and solar in the energy dashboard, it is learned for each hour of the day, and this counts only for hours without enough history."
         }
       }
     },
@@ -75,7 +75,7 @@
           "signal_blocked": "With the battery empty or none, drawing this much from the grid locks SG Ready heat pumps and blocks signals.",
           "forecast_entries": "Optional. Forecast.Solar, Solcast or any other integration that provides a solar forecast for the energy dashboard. Several are added up.",
           "reserve": "Held back from the surplus. A consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid.",
-          "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this."
+          "base_load": "What the house draws on its own, to read the forecast with: the expected surplus of an hour is its forecast minus this. With grid and solar in the energy dashboard, it is learned for each hour of the day, and this counts only for hours without enough history."
         }
       },
       "test_mode": {

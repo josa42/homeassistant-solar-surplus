@@ -16,6 +16,10 @@
 - **Battery capacity**: known, the plan follows the battery's charge through
   the forecast, charging it first below its target, and the panel continues the
   line of its charge with what the plan expects.
+- **Learned base load**: with grid and solar in the energy dashboard, the plan
+  learns the base load for each hour of the day from the past days, less what
+  Solar Surplus switched on. The setting counts for hours without enough
+  history, and the panel's line follows the hours.
 - **Best window** for deferrable consumers: the start where the forecast covers
   most of the run, before the deadline, shown with its expected solar share as
   `recommended_start` and `solar_share`. With *Wait for the best window* on, the

@@ -30,7 +30,7 @@
           "signal_blocked": "Bei leerer oder ohne Batterie sperrt so viel Netzbezug SG-Ready-Wärmepumpen und Signale.",
           "forecast_entries": "Optional. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
           "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
-          "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert."
+          "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert. Mit Netz und Solar im Energie-Dashboard wird sie für jede Stunde des Tages gelernt, und dieser Wert gilt nur für Stunden ohne genug Verlauf."
         }
       }
     },
@@ -75,7 +75,7 @@
           "signal_blocked": "Bei leerer oder ohne Batterie sperrt so viel Netzbezug SG-Ready-Wärmepumpen und Signale.",
           "forecast_entries": "Optional. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
           "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
-          "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert."
+          "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert. Mit Netz und Solar im Energie-Dashboard wird sie für jede Stunde des Tages gelernt, und dieser Wert gilt nur für Stunden ohne genug Verlauf."
         }
       },
       "test_mode": {

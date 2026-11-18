@@ -20,6 +20,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .adapters import Adapter, as_float, as_watts, build_adapter, build_spec
+from .base_load import BaseLoad, BaseLoadReader, Tracked
 from .const import (
     CONF_BASE_LOAD,
     CONF_BATTERY_CAPACITY,
@@ -33,6 +34,7 @@ from .const import (
     CONF_GRID_EXPORT_POSITIVE,
     CONF_GRID_POWER,
     CONF_NOTIFY_TARGET,
+    CONF_POWER_SENSOR,
     CONF_RESERVE,
     CONF_SIGNAL_BLOCKED,
     DEFAULT_BASE_LOAD,
@@ -138,6 +140,9 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         self.values: dict[str, Any] = {**entry.data, **entry.options}
         self.settings = hub_settings(self.values)
         self.forecast = ForecastReader(hass, self.values.get(CONF_FORECAST_ENTRIES, []))
+        self.base_load_reader = BaseLoadReader(hass, entry.entry_id)
+        #: What the plan last expected the house to draw on its own.
+        self.base_load = BaseLoad()
         self.consumers: dict[str, Consumer] = {}
         for subentry_id, subentry in entry.subentries.items():
             if subentry.subentry_type != SUBENTRY_TYPE_CONSUMER:
@@ -258,7 +263,7 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         entity_id = self.values.get(key)
         return self.hass.states.get(entity_id) if entity_id else None
 
-    def _inputs(self, now, forecast) -> Inputs:
+    def _inputs(self, now, forecast, base_load: BaseLoad) -> Inputs:
         grid = as_watts(self._state(CONF_GRID_POWER))
         if grid is not None and self.values.get(CONF_GRID_EXPORT_POSITIVE):
             grid = -grid
@@ -275,12 +280,15 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
             forecast=forecast,
             control_enabled=self.control_enabled and not self._first_run,
             settings=self.settings,
+            base_load=base_load.hours,
         )
 
     async def _async_update_data(self) -> Decision:
         now = dt_util.now()
         forecast = await self.forecast.async_get(now)
-        inputs = self._inputs(now, forecast)
+        if forecast:
+            self.base_load = await self.base_load_reader.async_get(now, self._tracked())
+        inputs = self._inputs(now, forecast, self.base_load)
         readings: dict[str, ConsumerReading] = {
             consumer_id: consumer.adapter.read(self.memory.consumer(consumer_id), now)
             for consumer_id, consumer in self.consumers.items()
@@ -315,6 +323,17 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         if simulation is None:
             self._sync_memories()
         return decision
+
+    def _tracked(self) -> dict[str, Tracked]:
+        """The consumers, for learning the base load from their history."""
+        subentries = self.entry.subentries
+        return {
+            consumer_id: Tracked(
+                spec=consumer.spec,
+                power_sensor=subentries[consumer_id].data.get(CONF_POWER_SENSOR),
+            )
+            for consumer_id, consumer in self.consumers.items()
+        }
 
     def _stored_memories(self) -> dict[str, ConsumerMemory]:
         return {

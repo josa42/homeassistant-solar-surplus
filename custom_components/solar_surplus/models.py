@@ -6,6 +6,7 @@ and back, so the engine can be tested with plain values.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -115,6 +116,14 @@ class Inputs:
     forecast: tuple[ForecastPeriod, ...] = ()
     control_enabled: bool = True
     settings: HubSettings = field(default_factory=HubSettings)
+    #: The base load learned for each hour of the day, local time. An hour not
+    #: in it has the one from the settings.
+    base_load: Mapping[int, float] = field(default_factory=dict)
+
+    def base_load_at(self, time: datetime) -> float:
+        """The base load expected at a time."""
+        hour = time.astimezone(self.now.tzinfo).hour
+        return self.base_load.get(hour, self.settings.base_load)
 
 
 @dataclass(slots=True)
