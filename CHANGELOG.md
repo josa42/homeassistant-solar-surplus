@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Signals** are no longer blocked while drawing from the grid unless asked
+  to, like SG Ready heat pumps: whatever follows them may need to run anyway.
+
 ## 0.2.0 - 2026-11-18
 
 ### Added

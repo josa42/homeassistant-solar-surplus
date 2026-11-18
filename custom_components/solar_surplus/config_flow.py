@@ -347,7 +347,7 @@ def signal_schema(values: dict[str, Any]) -> vol.Schema:
         {
             **_consumer_head(values),
             _suggest(CONF_SG_FORCED_POWER, values): _watts(),
-            _default(CONF_SG_LOCK, values, True): _bool(),
+            _default(CONF_SG_LOCK, values, False): _bool(),
             **_timings(values),
         }
     )

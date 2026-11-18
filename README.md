@@ -101,8 +101,9 @@ A **signal** switches nothing. It is decided like an SG Ready heat pump, and
 what it would set is published as `sensor.<consumer>_energy_signal`, for an
 integration that reacts to it as the heat pump would, see [Signals](#signals).
 Its power is what the consumer following it draws extra when recommended, and
-its power sensor what that consumer really draws. *Blocked while drawing from
-the grid* is on by default.
+its power sensor what that consumer really draws. It is never blocked unless
+*Blocked while drawing from the grid* is turned on: whatever follows it, such as
+a heating, may well need to run on the grid.
 
 A **deferrable** consumer has its own settings:
 
