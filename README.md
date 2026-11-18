@@ -56,6 +56,7 @@ consumer**.
 | Battery first up to | 90 % | Below this charge, what the battery charges with is not handed out. |
 | Battery counts as empty at | 20 % | At or below this, drawing from the grid locks SG Ready heat pumps and blocks signals. |
 | Battery maximum charge power | | Optional. Known, the part of it the battery does not use yet is held back for it while it is below *Battery first up to*. |
+| Battery capacity | | Optional, in kWh. Known, the [plan](#plan) follows the battery's charge through the forecast. |
 | Blocked from grid import of | 500 W | Drawing this much from the grid with the battery empty, or without one, locks SG Ready heat pumps and blocks signals, if they are allowed to be. |
 | Solar forecast | | Optional. One or more config entries that provide a solar forecast for the energy dashboard. Several are added up. |
 | Reserve | 100 W | Held back from the surplus. It is also the hysteresis: a consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid. |
@@ -178,10 +179,18 @@ served. A ready deferrable consumer is planned at the start that gives its run
 the most solar power before its deadline, and the consumers below it see what
 it leaves.
 
-The panel draws this under the forecast, one track per consumer, and the status
-sensors carry the next expected run as attributes. It is a forecast and no
-more: it knows nothing of clouds within the hour or of what else the house
-draws beyond its base load, and the battery is not part of it.
+With the battery's capacity and a sensor for its charge, the plan follows the
+battery too. Below *Battery first up to* it charges first, as long as its
+maximum charge power allows, and the consumers share what is left. Above it,
+it charges with what they leave, up to full. Where the forecast falls short of
+the base load and what the plan runs, the battery covers it, down to *Battery
+counts as empty at*.
+
+The panel draws this under the forecast, one track per consumer, and the
+expected charge as a dashed line. The status sensors carry the next expected
+run as attributes. It is a forecast and no more: it knows nothing of clouds
+within the hour, of what else the house draws beyond its base load, or of
+losses in the battery.
 
 ### Test mode
 
@@ -226,7 +235,8 @@ remembers which one was open last. **Overview** shows:
 - the forecast for a whole day as bars, today by default with a line at the
   current time, against the line of base load and reserve that a forecast hour
   has to clear before it counts as surplus, and with a battery SoC sensor the
-  battery's charge over the day from its history, on a scale of 0 to 100 %
+  battery's charge over the day from its history, on a scale of 0 to 100 %,
+  and with its capacity the charge the [plan](#plan) expects, dashed
 - below it, one track per consumer: what ran, from the history of its status
   or signal sensor, and what is expected to run, see [Plan](#plan), lighter.
   Green is on or recommended, blue forced, red locked or blocked, and a legend

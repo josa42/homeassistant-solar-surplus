@@ -20,6 +20,7 @@ from homeassistant.loader import IntegrationNotFound, async_get_integration
 from .const import (
     CONF_ADAPTER,
     CONF_BASE_LOAD,
+    CONF_BATTERY_CAPACITY,
     CONF_BATTERY_DISCHARGE_POSITIVE,
     CONF_BATTERY_MAX_CHARGE,
     CONF_BATTERY_MIN_SOC,
@@ -92,6 +93,7 @@ HUB_KEYS = (
     CONF_BATTERY_TARGET_SOC,
     CONF_BATTERY_MIN_SOC,
     CONF_BATTERY_MAX_CHARGE,
+    CONF_BATTERY_CAPACITY,
     CONF_SIGNAL_BLOCKED,
     CONF_FORECAST_ENTRIES,
     CONF_RESERVE,
@@ -190,6 +192,7 @@ def hub_schema(
             "%", 100
         ),
         _suggest(CONF_BATTERY_MAX_CHARGE, values): _watts(),
+        _suggest(CONF_BATTERY_CAPACITY, values): _number("kWh", 1000, 0.1),
         _default(CONF_SIGNAL_BLOCKED, values, DEFAULT_SIGNAL_BLOCKED): _watts(),
     }
     if forecast_options:

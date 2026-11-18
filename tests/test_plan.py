@@ -116,3 +116,63 @@ def test_a_running_deferrable_is_planned_until_it_ends() -> None:
     plan = house.run(0, after=HOUR / 2, forecast=forecast(2000, 2000)).plan["washer"]
     assert plan.expected_on == T0 + HOUR / 2
     assert plan.expected_off == T0 + 2 * HOUR
+
+
+def battery(**changes) -> HubSettings:
+    """A 10 kWh battery: 1 kWh is 10 %."""
+    values = {
+        "reserve": 0,
+        "base_load": 0,
+        "battery_capacity": 10000,
+        "battery_target_soc": 90,
+        "battery_min_soc": 20,
+    }
+    return HubSettings(**(values | changes))
+
+
+def charge(decision) -> list[float]:
+    return [soc for _, soc in decision.soc_forecast]
+
+
+def test_without_the_capacity_the_charge_is_not_followed() -> None:
+    house = House(spec("rod", 1000), settings=PLAIN)
+    assert house.run(0, soc=50, forecast=forecast(2000)).soc_forecast == []
+
+
+def test_without_a_reading_of_the_charge_it_is_not_followed() -> None:
+    house = House(spec("rod", 1000), settings=battery())
+    assert house.run(0, forecast=forecast(2000)).soc_forecast == []
+
+
+def test_the_battery_charges_up_to_full_and_covers_the_house() -> None:
+    house = House(settings=battery(base_load=500))
+    decision = house.run(0, soc=50, forecast=forecast(3500, 3500, 0))
+    assert decision.soc_forecast[0] == (T0, 50)
+    assert decision.soc_forecast[-1][0] == T0 + 3 * HOUR
+    assert charge(decision) == [50, 80, 100, 95]
+
+
+def test_the_battery_goes_no_lower_than_where_it_counts_as_empty() -> None:
+    house = House(settings=battery(base_load=1000))
+    assert charge(house.run(0, soc=25, forecast=forecast(0, 0))) == [25, 20, 20]
+
+
+def test_below_its_target_the_battery_charges_first() -> None:
+    house = House(spec("rod", 1000), settings=battery())
+    decision = house.run(0, soc=50, forecast=forecast(2000, 2000, 2000))
+    assert windows(decision.plan["rod"]) == [(2, 3, None)]
+    assert charge(decision) == [50, 70, 90, 100], "then it gets what the rod leaves"
+
+
+def test_what_the_battery_cannot_take_goes_to_the_consumers() -> None:
+    house = House(spec("rod", 1000), settings=battery(battery_max_charge=1000))
+    decision = house.run(0, soc=50, forecast=forecast(2000))
+    assert windows(decision.plan["rod"]) == [(0, 1, None)]
+    assert charge(decision) == [50, 60]
+
+
+def test_above_its_target_the_battery_gets_what_the_consumers_leave() -> None:
+    house = House(spec("rod", 1000), settings=battery())
+    decision = house.run(0, soc=92, forecast=forecast(1500))
+    assert windows(decision.plan["rod"]) == [(0, 1, None)]
+    assert charge(decision) == [92, 97]

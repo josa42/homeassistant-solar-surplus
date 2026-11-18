@@ -6,6 +6,11 @@ what it would take in that period, and leaves the rest to the ones below it. A
 deferrable consumer is planned at the start where its run gets the most solar
 power, before its deadline, and the consumers below it see what that leaves.
 
+With the battery's capacity known, the plan follows its charge as well. Below
+its target it charges first, as the engine has it, and the consumers share
+what is left; above it, it charges with what they leave, and it covers the
+house when the sun does not, down to the charge it counts as empty at.
+
 It is a forecast and no more: the hourly figures know nothing of clouds within
 the hour or of what else the house draws beyond its base load. Like the engine,
 nothing in here imports Home Assistant.
@@ -33,14 +38,20 @@ def make_plan(
     consumers: list[ConsumerInput],
     order: list[str],
     memory: EngineMemory,
-) -> dict[str, ConsumerPlan]:
-    """Each consumer's expected runs, in priority order. Empty without a forecast."""
+) -> tuple[dict[str, ConsumerPlan], list[tuple[datetime, float]]]:
+    """Each consumer's expected runs, in priority order, and the battery's charge.
+
+    Both are empty without a forecast; the charge also without the battery's
+    capacity or a reading of its charge.
+    """
     now = inputs.now
     periods = [p for p in inputs.forecast if p.end > now]
     if not periods:
-        return {}
+        return {}, []
     settings = inputs.settings
     budgets = [p.watts - settings.base_load - settings.reserve for p in periods]
+    _battery_first(inputs, periods, budgets)
+    available = list(budgets)
     by_id = {consumer.spec.id: consumer for consumer in consumers}
     plans: dict[str, ConsumerPlan] = {}
     for consumer_id in order:
@@ -52,7 +63,63 @@ def make_plan(
         else:
             plan = _running(inputs, consumer, periods, budgets)
         plans[consumer_id] = plan
-    return plans
+    used = [before - after for before, after in zip(available, budgets, strict=True)]
+    return plans, _charge(inputs, periods, used)
+
+
+def _battery(inputs: Inputs) -> tuple[float, float] | None:
+    """The battery's capacity in Wh and its charge now, if both are known."""
+    capacity = inputs.settings.battery_capacity
+    if not capacity or inputs.soc is None:
+        return None
+    return capacity, inputs.soc
+
+
+def _battery_first(
+    inputs: Inputs, periods: list[ForecastPeriod], budgets: list[float]
+) -> None:
+    """Take what the battery charges with below its target off the budgets."""
+    battery = _battery(inputs)
+    if battery is None:
+        return
+    capacity, soc = battery
+    settings = inputs.settings
+    floor = min(settings.battery_min_soc, soc)
+    for index, period in enumerate(periods):
+        hours = _hours(period, inputs.now, period.end)
+        if hours <= 0:
+            continue
+        spare = period.watts - settings.base_load
+        if spare > 0 and soc < settings.battery_target_soc:
+            needed = (settings.battery_target_soc - soc) / 100 * capacity / hours
+            charge = min(spare, settings.battery_max_charge or spare, needed)
+            budgets[index] -= charge
+            soc += charge * hours / capacity * 100
+        elif spare < 0:
+            soc = max(soc + spare * hours / capacity * 100, floor)
+
+
+def _charge(
+    inputs: Inputs, periods: list[ForecastPeriod], used: list[float]
+) -> list[tuple[datetime, float]]:
+    """The battery's charge now and at the end of each period, once the
+    consumers have taken what the plan gives them."""
+    battery = _battery(inputs)
+    if battery is None:
+        return []
+    capacity, soc = battery
+    settings = inputs.settings
+    # It does not go below where it counts as empty, or below where it is.
+    floor = min(settings.battery_min_soc, soc)
+    points = [(inputs.now, round(soc, 1))]
+    for period, taken in zip(periods, used, strict=True):
+        hours = _hours(period, inputs.now, period.end)
+        net = period.watts - settings.base_load - taken
+        if net > 0:
+            net = min(net, settings.battery_max_charge or net)
+        soc = min(max(soc + net * hours / capacity * 100, floor), 100.0)
+        points.append((period.end, round(soc, 1)))
+    return points
 
 
 def _start(period: ForecastPeriod, now: datetime) -> datetime:

@@ -28,6 +28,8 @@ class HubSettings:
     battery_target_soc: float = 90
     battery_min_soc: float = 20
     battery_max_charge: float | None = None
+    #: In Wh.
+    battery_capacity: float | None = None
     reserve: float = 100
     base_load: float = 400
     signal_blocked: float = 500
@@ -262,6 +264,9 @@ class Decision:
     order: list[str]
     forecast: tuple[ForecastPeriod, ...] = ()
     plan: dict[str, ConsumerPlan] = field(default_factory=dict)
+    #: The battery's expected charge at the end of each forecast period ahead,
+    #: starting with what it holds now.
+    soc_forecast: list[tuple[datetime, float]] = field(default_factory=list)
 
     def consumer(self, consumer_id: str) -> ConsumerDecision | None:
         """The decision for one consumer, if it is part of this run."""
@@ -282,6 +287,9 @@ class Decision:
             "consumers": [consumer.to_dict() for consumer in self.consumers],
             "order": list(self.order),
             "plan": {key: plan.to_dict() for key, plan in self.plan.items()},
+            "soc_forecast": [
+                {"time": _plain(time), "soc": soc} for time, soc in self.soc_forecast
+            ],
             "forecast": [
                 {
                     "start": _plain(p.start),

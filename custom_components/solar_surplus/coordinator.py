@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 from .adapters import Adapter, as_float, as_watts, build_adapter, build_spec
 from .const import (
     CONF_BASE_LOAD,
+    CONF_BATTERY_CAPACITY,
     CONF_BATTERY_DISCHARGE_POSITIVE,
     CONF_BATTERY_MAX_CHARGE,
     CONF_BATTERY_MIN_SOC,
@@ -94,6 +95,7 @@ class Consumer:
 def hub_settings(values: Mapping[str, Any]) -> HubSettings:
     """The engine's settings from the entry's data and options."""
     max_charge = values.get(CONF_BATTERY_MAX_CHARGE)
+    capacity = values.get(CONF_BATTERY_CAPACITY)
     return HubSettings(
         battery_target_soc=float(
             values.get(CONF_BATTERY_TARGET_SOC, DEFAULT_BATTERY_TARGET_SOC)
@@ -102,6 +104,7 @@ def hub_settings(values: Mapping[str, Any]) -> HubSettings:
             values.get(CONF_BATTERY_MIN_SOC, DEFAULT_BATTERY_MIN_SOC)
         ),
         battery_max_charge=float(max_charge) if max_charge else None,
+        battery_capacity=float(capacity) * 1000 if capacity else None,
         reserve=float(values.get(CONF_RESERVE, DEFAULT_RESERVE)),
         base_load=float(values.get(CONF_BASE_LOAD, DEFAULT_BASE_LOAD)),
         signal_blocked=float(values.get(CONF_SIGNAL_BLOCKED, DEFAULT_SIGNAL_BLOCKED)),

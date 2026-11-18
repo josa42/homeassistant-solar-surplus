@@ -32,6 +32,9 @@ CONF_BATTERY_MIN_SOC: Final = "battery_min_soc"
 #: use yet is held back while it is below its target, instead of a consumer
 #: taking it.
 CONF_BATTERY_MAX_CHARGE: Final = "battery_max_charge_power"
+#: How much the battery holds, in kWh. Known, the plan follows its charge
+#: through the forecast.
+CONF_BATTERY_CAPACITY: Final = "battery_capacity"
 CONF_FORECAST_ENTRIES: Final = "forecast_entries"
 #: Held back from the surplus, so a consumer is not switched on by the last few
 #: watts and then runs on the grid as soon as a cloud passes.

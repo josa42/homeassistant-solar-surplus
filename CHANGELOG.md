@@ -13,6 +13,9 @@
   forecast covers. Below it, each consumer's track shows what ran, from the
   history, next to what is expected to run, with a legend for the colors.
   With a battery SoC sensor, a line over the bars shows the battery's charge.
+- **Battery capacity**: known, the plan follows the battery's charge through
+  the forecast, charging it first below its target, and the panel continues the
+  line of its charge with what the plan expects.
 - **Best window** for deferrable consumers: the start where the forecast covers
   most of the run, before the deadline, shown with its expected solar share as
   `recommended_start` and `solar_share`. With *Wait for the best window* on, the

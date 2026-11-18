@@ -208,6 +208,7 @@ def main() -> None:
             "battery_power": "sensor.dev_battery",
             "battery_discharge_positive": True,
             "battery_soc": "sensor.dev_battery_soc",
+            "battery_capacity": 10,
             "forecast_entries": [sun["entry_id"]],
             "reserve": 100,
             "base_load": 400,

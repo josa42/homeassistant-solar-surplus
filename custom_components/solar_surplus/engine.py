@@ -64,11 +64,12 @@ def decide(
 
     for consumer in consumers:
         _observe(consumer, memory.consumer(consumer.spec.id), now)
-    plan = make_plan(inputs, consumers, ordered, memory)
+    plan, soc_forecast = make_plan(inputs, consumers, ordered, memory)
 
     if inputs.grid is None:
         decision = _without_data(inputs, consumers, ordered, memory)
         decision.plan = plan
+        decision.soc_forecast = soc_forecast
         return decision
 
     raw = _surplus(inputs, consumers, memory)
@@ -105,6 +106,7 @@ def decide(
         order=ordered,
         forecast=inputs.forecast,
         plan=plan,
+        soc_forecast=soc_forecast,
     )
 
 

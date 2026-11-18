@@ -27,6 +27,20 @@ function storedTab() {
   }
 }
 
+// A line of [time, value] points cut to [start, end], with a point where it
+// crosses either.
+function clip(points, start, end) {
+  const at = (a, b, time) => [time, a[1] + ((b[1] - a[1]) * (time - a[0])) / (b[0] - a[0])];
+  const out = [];
+  points.forEach((point, i) => {
+    const previous = points[i - 1];
+    if (previous && previous[0] < start && point[0] > start) out.push(at(previous, point, start));
+    if (point[0] >= start && point[0] <= end) out.push(point);
+    if (previous && previous[0] < end && point[0] > end) out.push(at(previous, point, end));
+  });
+  return out;
+}
+
 // The SG Ready states by the names a signal tells them by.
 const SIGNAL_LEVELS = { 1: "blocked", 2: "normal", 3: "recommended", 4: "forced" };
 
@@ -61,6 +75,7 @@ const STRINGS = {
     "forecast.remaining": "{value} left today",
     "forecast.threshold": "Base load and reserve",
     "forecast.soc": "Battery charge",
+    "forecast.soc_expected": "Expected charge",
     "forecast.total": "{value} expected",
     "forecast.today": "Today",
     "forecast.previous": "Previous day",
@@ -155,6 +170,7 @@ const STRINGS = {
     "forecast.remaining": "heute noch {value}",
     "forecast.threshold": "Grundlast und Reserve",
     "forecast.soc": "Batterieladung",
+    "forecast.soc_expected": "Erwartete Ladung",
     "forecast.total": "{value} erwartet",
     "forecast.today": "Heute",
     "forecast.previous": "Vorheriger Tag",
@@ -611,9 +627,11 @@ const STYLE = `
   .forecast .bar.past { fill: color-mix(in srgb, var(--warning-color, #ffa600) 35%, transparent); }
   .forecast .threshold { stroke: var(--secondary-text-color, #727272); stroke-dasharray: 4 3; }
   .forecast path.soc { fill: none; stroke: var(--ss-soc); stroke-width: 2; stroke-linejoin: round; }
+  .forecast path.soc.planned { stroke-dasharray: 5 4; opacity: 0.8; }
   .forecast .legend .keys { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; }
   .forecast .legend .keys span { display: inline-flex; align-items: center; gap: 6px; }
   .forecast .legend i.soc { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--ss-soc); }
+  .forecast .legend i.soc.planned { border-top-style: dashed; opacity: 0.8; }
   .forecast .plan { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
   .forecast .plan h3 {
     margin: 0;
@@ -1111,21 +1129,36 @@ class SolarSurplusPanel extends HTMLElement {
     const soc = [...(this._history[day]?.soc || [])];
     const current = this._state.decision?.soc;
     if (isToday && soc.length && current !== null && current !== undefined) soc.push([now, current]);
-    const socPath = soc
-      .map(([time, value], i) => {
-        const x = at(time) * width;
-        const y = plot - (Math.min(Math.max(value, 0), 100) / 100) * (plot - 4);
-        // A step: the value holds until the next one.
-        return i ? `H${x.toFixed(1)}V${y.toFixed(1)}` : `M${x.toFixed(1)} ${y.toFixed(1)}`;
-      })
-      .join("");
-    if (soc.length) {
+    // What the plan expects of it, from now on, cut to the day: where it
+    // crosses midnight, at the charge it has then.
+    const expected = clip(
+      (this._state.decision?.soc_forecast || []).map((point) => [new Date(point.time).getTime(), point.soc]),
+      first,
+      last
+    );
+    const point = ([time, value]) => {
+      const x = (at(time) * width).toFixed(1);
+      const y = (plot - (Math.min(Math.max(value, 0), 100) / 100) * (plot - 4)).toFixed(1);
+      return [x, y];
+    };
+    const socLine = (points, cls, step) => {
+      if (!points.length) return;
+      const d = points
+        .map((p, i) => {
+          const [x, y] = point(p);
+          // The history holds a value until the next; the plan moves along.
+          if (!i) return `M${x} ${y}`;
+          return step ? `H${x}V${y}` : `L${x} ${y}`;
+        })
+        .join("");
       const path = document.createElementNS(ns, "path");
-      path.setAttribute("class", "soc");
-      path.setAttribute("d", socPath);
+      path.setAttribute("class", cls);
+      path.setAttribute("d", d);
       path.setAttribute("vector-effect", "non-scaling-stroke");
       svg.append(path);
-    }
+    };
+    socLine(soc, "soc", true);
+    socLine(expected, "soc planned", false);
     // The hours go below in HTML: the SVG stretches to the card's width, and
     // text inside it would stretch along.
     const every = Math.max(1, Math.ceil(bounds.length / 8));
@@ -1133,7 +1166,7 @@ class SolarSurplusPanel extends HTMLElement {
     bounds.forEach(([start], i) => hours.append(h("span", { text: i % every === 0 ? hourLabel(hass, start) : "" })));
 
     const chart = h("div", { class: "chart" });
-    if (shown.length || soc.length) chart.append(svg);
+    if (shown.length || soc.length || expected.length) chart.append(svg);
     if (!shown.length) chart.append(h("div", { class: "hint", text: t(hass, this._state.has_forecast ? "forecast.no_forecast" : "forecast.none") }));
     chart.append(hours, this._renderTracks(at, first, last, now));
     if (isToday) {
@@ -1154,6 +1187,12 @@ class SolarSurplusPanel extends HTMLElement {
     if (soc.length) {
       const latest = soc[soc.length - 1][1];
       keys.append(h("span", {}, h("i", { class: "soc" }), `${t(hass, "forecast.soc")} (${Math.round(latest)} %)`));
+    }
+    if (expected.length) {
+      const latest = expected[expected.length - 1][1];
+      keys.append(
+        h("span", {}, h("i", { class: "soc planned" }), `${t(hass, "forecast.soc_expected")} (${Math.round(latest)} %)`)
+      );
     }
     legend.append(keys);
     card.append(chart, legend);

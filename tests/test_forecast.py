@@ -16,7 +16,11 @@ from pytest_homeassistant_custom_component.common import (
     mock_platform,
 )
 
-from custom_components.solar_surplus.const import CONF_FORECAST_ENTRIES
+from custom_components.solar_surplus.const import (
+    CONF_BATTERY_CAPACITY,
+    CONF_BATTERY_SOC,
+    CONF_FORECAST_ENTRIES,
+)
 from custom_components.solar_surplus.forecast import (
     ForecastReader,
     power_now,
@@ -186,3 +190,27 @@ async def test_each_consumer_says_when_it_is_expected_to_run(
     assert state.attributes["recommended_start"] is None
     plan = coordinator.data.to_dict()["plan"]
     assert [len(p["windows"]) for p in plan.values()] == [1]
+
+
+async def test_with_its_capacity_the_battery_charge_is_forecast(
+    hass: HomeAssistant, setup_entry, roof
+) -> None:
+    now = dt_util.now()
+    start = _hour(now)
+    sky = roof({start + HOUR: 2500})
+    entry = hub(
+        **{
+            CONF_FORECAST_ENTRIES: [sky.entry_id],
+            CONF_BATTERY_SOC: "sensor.battery_soc",
+            CONF_BATTERY_CAPACITY: 10,
+        }
+    )
+    entry.add_to_hass(hass)
+    grid(hass, 0)
+    hass.states.async_set("sensor.battery_soc", "50")
+    coordinator = await setup_entry(entry)
+    await coordinator.async_refresh()
+
+    points = coordinator.data.to_dict()["soc_forecast"]
+    # 2500 W less 400 W base load for an hour: 2.1 kWh, 21 % of 10 kWh.
+    assert points[-1] == {"time": (start + 2 * HOUR).isoformat(), "soc": 71.0}
