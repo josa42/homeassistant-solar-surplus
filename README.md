@@ -218,7 +218,8 @@ minimum times afresh.
 
 ## Panel
 
-The integration adds **Solar Surplus** to the sidebar. It shows:
+The integration adds **Solar Surplus** to the sidebar, in two tabs. The panel
+remembers which one was open last. **Overview** shows:
 
 - the surplus (smoothed, and what it is right now), the grid, the battery, what
   is handed out and what is left
@@ -227,11 +228,12 @@ The integration adds **Solar Surplus** to the sidebar. It shows:
   has to clear before it counts as surplus, and below it when each consumer is
   expected to run, see [Plan](#plan). The arrows step through the days the
   forecast covers, and *Today* goes back
-- every consumer in priority order, with what it is doing, why, and the figures
-  behind it: the surplus it saw at its place, until when a delay or minimum time
-  runs, when it is next expected to run, and for a deferrable consumer by when
-  it starts at the latest, by when it is done, and how much of its run the sun
-  is expected to cover, and for a signal what it tells
+
+**Priority** shows every consumer in priority order, with what it is doing, why,
+and the figures behind it: the surplus it saw at its place, until when a delay
+or minimum time runs, when it is next expected to run, and for a deferrable
+consumer by when it starts at the latest, by when it is done, and how much of
+its run the sun is expected to cover, and for a signal what it tells.
 
 Admins can change the order by dragging a row or with its arrows, put a hand on
 a consumer (Auto, On, Off), and turn control and test mode on or off. Everyone

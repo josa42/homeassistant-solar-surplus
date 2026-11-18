@@ -10,6 +10,18 @@
 const PANEL_VERSION = "0.2.0";
 
 const NARROW_QUERY = "(max-width: 700px)";
+const TABS = ["overview", "priority"];
+const TAB_KEY = "solar-surplus-tab";
+
+// The tab last open, for this viewer only. Storage can be missing or throw.
+function storedTab() {
+  try {
+    const tab = window.localStorage.getItem(TAB_KEY);
+    return TABS.includes(tab) ? tab : TABS[0];
+  } catch {
+    return TABS[0];
+  }
+}
 
 // The SG Ready states by the names a signal tells them by.
 const SIGNAL_LEVELS = { 1: "blocked", 2: "normal", 3: "recommended", 4: "forced" };
@@ -49,6 +61,8 @@ const STRINGS = {
     "forecast.previous": "Previous day",
     "forecast.next": "Next day",
     "forecast.plan": "Expected to run",
+    "tab.overview": "Overview",
+    "tab.priority": "Priority",
     "list.title": "Priority",
     "list.hint": "Served from the top. Drag a row, or use the arrows, to change the order.",
     "list.empty": "No consumers yet. Add one on the integration's page.",
@@ -134,6 +148,8 @@ const STRINGS = {
     "forecast.previous": "Vorheriger Tag",
     "forecast.next": "Nächster Tag",
     "forecast.plan": "Läuft voraussichtlich",
+    "tab.overview": "Übersicht",
+    "tab.priority": "Priorität",
     "list.title": "Priorität",
     "list.hint": "Von oben nach unten bedient. Zeile ziehen oder Pfeile nutzen, um die Reihenfolge zu ändern.",
     "list.empty": "Noch keine Verbraucher. Auf der Seite der Integration hinzufügen.",
@@ -380,6 +396,27 @@ const STYLE = `
     padding-inline-start: 12px;
   }
   .toolbar .title.with-icon { padding-inline-start: 0; }
+  .tabs {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    background: var(--app-header-background-color, var(--primary-color, #03a9f4));
+    color: var(--app-header-text-color, #fff);
+  }
+  .tab {
+    border: 0;
+    background: none;
+    color: inherit;
+    opacity: 0.75;
+    padding: 12px 20px 10px;
+    border-bottom: 2px solid transparent;
+    font-size: var(--ha-font-size-m, 14px);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .tab:hover { opacity: 1; }
+  .tab.active { opacity: 1; border-bottom-color: currentColor; }
   button {
     font: inherit;
     color: inherit;
@@ -664,6 +701,7 @@ class SolarSurplusPanel extends HTMLElement {
     this._dragId = null;
     // The day the forecast shows; null follows today.
     this._day = null;
+    this._tab = storedTab();
   }
 
   set hass(hass) {
@@ -820,6 +858,19 @@ class SolarSurplusPanel extends HTMLElement {
       );
     }
 
+    const tabs = h("div", { class: "tabs", role: "tablist" });
+    for (const tab of TABS) {
+      tabs.append(
+        h("button", {
+          class: `tab${tab === this._tab ? " active" : ""}`,
+          role: "tab",
+          "aria-selected": String(tab === this._tab),
+          text: t(hass, `tab.${tab}`),
+          onClick: () => this._showTab(tab),
+        })
+      );
+    }
+
     const content = h("div", { class: "content" });
     if (this._error) content.append(h("div", { class: "message", text: this._error }));
     if (!this._state) {
@@ -827,10 +878,22 @@ class SolarSurplusPanel extends HTMLElement {
     } else {
       if (!this._state.control_enabled) content.append(h("div", { class: "banner", text: t(hass, "control.banner") }));
       else if (this._state.test_mode) content.append(h("div", { class: "banner", text: t(hass, "test_mode.banner") }));
-      content.append(this._renderCards(), this._renderForecast(), this._renderList());
+      if (this._tab === "priority") content.append(this._renderList());
+      else content.append(this._renderCards(), this._renderForecast());
     }
 
-    this.shadowRoot.replaceChildren(h("style", { text: STYLE }), toolbar, h("main", {}, content));
+    this.shadowRoot.replaceChildren(h("style", { text: STYLE }), toolbar, tabs, h("main", {}, content));
+  }
+
+  _showTab(tab) {
+    if (tab === this._tab) return;
+    this._tab = tab;
+    try {
+      window.localStorage.setItem(TAB_KEY, tab);
+    } catch {
+      // Remembering the tab is a convenience; without storage it is not kept.
+    }
+    this._render();
   }
 
   _stat(label, value, sub, extra) {
