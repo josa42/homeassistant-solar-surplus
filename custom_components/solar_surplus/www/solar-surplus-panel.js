@@ -617,7 +617,21 @@ const STYLE = `
     border-left: 2px solid var(--primary-color, #03a9f4);
     pointer-events: none;
   }
-  .forecast .chart > svg { display: block; width: 100%; height: 120px; }
+  .forecast .plot { position: relative; }
+  .forecast .plot > svg { display: block; width: 100%; height: 120px; }
+  .forecast .grid { stroke: var(--divider-color, rgba(0, 0, 0, 0.12)); }
+  .forecast .axis { position: absolute; inset: 0; pointer-events: none; }
+  .forecast .axis span {
+    position: absolute;
+    left: 0;
+    transform: translateY(-50%);
+    padding: 0 4px 0 0;
+    color: var(--secondary-text-color, #727272);
+    background: var(--ha-card-background, var(--card-background-color, #fff));
+    font-size: 11px;
+    line-height: 14px;
+  }
+  .forecast .axis.right span { left: auto; right: 0; padding: 0 0 0 4px; color: var(--ss-soc); }
   .forecast .hours {
     display: flex;
     color: var(--secondary-text-color, #727272);
@@ -1088,7 +1102,10 @@ class SolarSurplusPanel extends HTMLElement {
       return (learned[hour] ?? settings.base_load ?? 0) + (settings.reserve || 0);
     };
     const thresholds = bounds.map(([start]) => thresholdAt(start));
-    const peak = Math.max(...thresholds, ...periods.map((p) => p.watts), 1);
+    // The scale ends on a round step, so the axis reads 0, 1 kW, 2 kW, …
+    const highest = Math.max(...thresholds, ...periods.map((p) => p.watts), 1);
+    const step = [100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000].find((s) => highest / s <= 4) || 50000;
+    const peak = Math.ceil(highest / step) * step;
 
     const at = (value) => {
       const time = new Date(value).getTime();
@@ -1173,7 +1190,41 @@ class SolarSurplusPanel extends HTMLElement {
     bounds.forEach(([start], i) => hours.append(h("span", { text: i % every === 0 ? hourLabel(hass, start) : "" })));
 
     const chart = h("div", { class: "chart" });
-    if (shown.length || soc.length || expected.length) chart.append(svg);
+    if (shown.length || soc.length || expected.length) {
+      const ticks = Array.from({ length: Math.round(peak / step) + 1 }, (_, i) => i * step);
+      // Faint lines behind the bars, one per step.
+      for (const value of ticks.slice(1)) {
+        const y = String(plot - (value / peak) * (plot - 4));
+        const line = document.createElementNS(ns, "line");
+        line.setAttribute("class", "grid");
+        line.setAttribute("x1", "0");
+        line.setAttribute("x2", String(width));
+        line.setAttribute("y1", y);
+        line.setAttribute("y2", y);
+        line.setAttribute("vector-effect", "non-scaling-stroke");
+        svg.prepend(line);
+      }
+      // The labels are HTML over the SVG, which stretches and would stretch
+      // text along.
+      const top = (value, scale) => `${((plot - (value / scale) * (plot - 4)) / plot) * 100}%`;
+      const axis = h("div", { class: "axis" });
+      for (const value of ticks.slice(1)) {
+        const label = h("span", { text: formatPower(hass, value) });
+        label.style.top = top(value, peak);
+        axis.append(label);
+      }
+      const box = h("div", { class: "plot" }, svg, axis);
+      if (soc.length || expected.length) {
+        const right = h("div", { class: "axis right" });
+        for (const value of [50, 100]) {
+          const label = h("span", { text: `${value} %` });
+          label.style.top = top(value, 100);
+          right.append(label);
+        }
+        box.append(right);
+      }
+      chart.append(box);
+    }
     if (!shown.length) chart.append(h("div", { class: "hint", text: t(hass, this._state.has_forecast ? "forecast.no_forecast" : "forecast.none") }));
     chart.append(hours, this._renderTracks(at, first, last, now));
     if (isToday) {
@@ -1328,10 +1379,10 @@ class SolarSurplusPanel extends HTMLElement {
         }));
       return [...(ran[id] || []), ...planned];
     };
+    // Every consumer, so one that did not run and is not expected to shows so.
     const rows = this._order()
       .filter((id) => consumers[id])
-      .map((id) => [id, segments(id)])
-      .filter(([, list]) => list.length);
+      .map((id) => [id, segments(id)]);
     if (!rows.length) return box;
     box.append(h("h3", { text: t(hass, "forecast.plan") }));
     const kinds = new Set();
@@ -1356,6 +1407,7 @@ class SolarSurplusPanel extends HTMLElement {
       }
       box.append(h("div", { class: "plan-row" }, h("div", { class: "name", text: consumers[id].title }), track));
     }
+    if (!kinds.size) return box;
     const key = h("div", { class: "key" });
     for (const kind of ["on", "forced", "blocked"]) {
       if (kinds.has(kind)) key.append(h("span", {}, h("i", { class: kind }), t(hass, `legend.${kind}`)));
