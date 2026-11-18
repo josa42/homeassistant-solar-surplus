@@ -399,8 +399,9 @@ const STYLE = `
   .tabs {
     flex: 0 0 auto;
     display: flex;
-    justify-content: center;
     gap: 4px;
+    padding: 0 12px;
+    overflow-x: auto;
     background: var(--app-header-background-color, var(--primary-color, #03a9f4));
     color: var(--app-header-text-color, #fff);
   }
