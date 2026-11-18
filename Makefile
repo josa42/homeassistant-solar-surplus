@@ -121,6 +121,14 @@ dev:
 	@touch config/automations.yaml config/scripts.yaml config/scenes.yaml config/secrets.yaml
 	@ln -sfn ../../custom_components/solar_surplus config/custom_components/solar_surplus
 	@ln -sfn ../../dev/dev_solar config/custom_components/dev_solar
+	@# An instance already running on this configuration is stopped, so this
+	@# one takes over. Home Assistant names it in its lock file.
+	@pid=$$(sed -n 's/.*"pid": *\([0-9]*\).*/\1/p' config/.ha_run.lock 2>/dev/null); \
+	if [ -n "$$pid" ] && kill -0 $$pid 2>/dev/null; then \
+		echo "Stopping the instance already running ($$pid)..."; \
+		kill $$pid; \
+		for i in $$(seq 1 60); do kill -0 $$pid 2>/dev/null || break; sleep 1; done; \
+	fi
 	@echo "Home Assistant on http://localhost:8123, user dev, password dev"
 	@$(VENV_PYTHON) dev/provision.py & \
 	$(VENV_BIN)/hass -c config

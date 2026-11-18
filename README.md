@@ -375,7 +375,8 @@ a climate control following a signal, a wallbox and a washer). Solar Surplus
 is given none of the meters: grid, battery, charge, capacity and forecast all
 come from the energy dashboard. Fourteen days of a made-up house go into the
 dashboard's statistics, so the base load is learned from the start. Code
-changes need a restart: stop it with Ctrl+C and run it again. An instance set
+changes need a restart: run `make dev` again, which stops an instance
+already running on `config/` and takes over. An instance set
 up before this needs `make dev-reset` to get the energy dashboard.
 
 The house is simulated in `config.template.yaml`, which `make dev` copies over
