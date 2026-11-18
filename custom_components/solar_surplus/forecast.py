@@ -90,7 +90,9 @@ def to_periods(watt_hours: dict[datetime, float]) -> tuple[ForecastPeriod, ...]:
     """Turn watt-hours per period start into average power per period.
 
     The periods are as long as the closest two starts are apart, an hour at
-    most: Forecast.Solar reports hours, Solcast half hours.
+    most: Forecast.Solar reports hours, Solcast half hours. Some leave the
+    night out; it is filled in with periods of nothing, so the plan sees the
+    house through it.
     """
     starts = sorted(watt_hours)
     gaps = [
@@ -100,10 +102,19 @@ def to_periods(watt_hours: dict[datetime, float]) -> tuple[ForecastPeriod, ...]:
     ]
     length = min([HOUR, *gaps])
     hours = length / HOUR
-    return tuple(
-        ForecastPeriod(start=start, end=start + length, watts=watt_hours[start] / hours)
-        for start in starts
-    )
+    periods: list[ForecastPeriod] = []
+    for start in starts:
+        if periods:
+            gap = periods[-1].end
+            while gap + length <= start:
+                periods.append(ForecastPeriod(start=gap, end=gap + length, watts=0.0))
+                gap += length
+        periods.append(
+            ForecastPeriod(
+                start=start, end=start + length, watts=watt_hours[start] / hours
+            )
+        )
+    return tuple(periods)
 
 
 def remaining_today(periods: tuple[ForecastPeriod, ...], now: datetime) -> float:

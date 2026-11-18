@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- A forecast that leaves the night out, as Forecast.Solar does, is filled in
+  with hours of nothing, so the plan and the battery's expected charge go
+  through the night instead of jumping to the morning.
+
 ## 0.3.0 - 2026-11-18
 
 ### Added

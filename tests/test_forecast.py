@@ -150,6 +150,17 @@ def test_half_hours_are_read_as_half_hours() -> None:
     ]
 
 
+def test_the_night_left_out_is_filled_in() -> None:
+    start = datetime(2026, 6, 15, 16, 0, tzinfo=dt_util.UTC)
+    periods = to_periods({start: 500, start + 3 * HOUR: 1000})
+    assert [(p.start - start, p.watts) for p in periods] == [
+        (0 * HOUR, 500),
+        (1 * HOUR, 0),
+        (2 * HOUR, 0),
+        (3 * HOUR, 1000),
+    ]
+
+
 async def test_what_is_left_of_today(hass: HomeAssistant) -> None:
     await hass.config.async_set_time_zone("UTC")
     start = datetime(2026, 6, 15, 12, 0, tzinfo=dt_util.UTC)
