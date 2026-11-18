@@ -1,4 +1,4 @@
-.PHONY: help venv install test lint lint-fix clean dev-up dev-down dev-logs dev-restart release
+.PHONY: help venv install test lint lint-fix clean dev dev-reset dev-up dev-down dev-logs dev-restart release
 
 # Home Assistant 2026.9 needs Python 3.14; a newer default python3 cannot resolve it.
 PYTHON := $(shell command -v python3.14 || command -v python3 || command -v python)
@@ -11,7 +11,10 @@ help:
 	@echo "Available commands:"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev-up       - Start local Home Assistant for testing (pulls the latest image)"
+	@echo "  make dev          - Run a ready-made test instance from the venv: a simulated"
+	@echo "                      sun with a forecast and five test consumers (user dev/dev)"
+	@echo "  make dev-reset    - Forget the test instance, so the next make dev starts fresh"
+	@echo "  make dev-up       - Start local Home Assistant in Docker (pulls the latest image)"
 	@echo "  make dev-down     - Stop local Home Assistant"
 	@echo "  make dev-logs     - Follow Home Assistant logs"
 	@echo "  make dev-restart  - Restart after code changes"
@@ -58,14 +61,14 @@ lint:
 		echo "Virtual environment not found. Run 'make install' first."; \
 		exit 1; \
 	fi
-	$(VENV_BIN)/ruff check custom_components/ tests/
+	$(VENV_BIN)/ruff check custom_components/ tests/ dev/
 
 lint-fix:
 	@if [ ! -d "$(VENV)" ]; then \
 		echo "Virtual environment not found. Run 'make install' first."; \
 		exit 1; \
 	fi
-	$(VENV_BIN)/ruff check --fix custom_components/ tests/
+	$(VENV_BIN)/ruff check --fix custom_components/ tests/ dev/
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
@@ -101,6 +104,30 @@ release:
 	fi; \
 	gh workflow run release.yml -f version="$$version"
 	@echo "Release workflow started. Follow it with: gh run watch"
+
+# The test instance runs from the venv, which has Home Assistant and its
+# frontend. configuration.yaml is the template, every time; the rest of
+# config/ (users, entries, history) stays until `make dev-reset`.
+dev:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Virtual environment not found. Run 'make install' first."; \
+		exit 1; \
+	fi
+	@# An older setup linked the whole directory; the links below would land
+	@# in the integration's own source then.
+	@if [ -L config/custom_components ]; then rm config/custom_components; fi
+	@mkdir -p config/custom_components
+	@cp config.template.yaml config/configuration.yaml
+	@touch config/automations.yaml config/scripts.yaml config/scenes.yaml config/secrets.yaml
+	@ln -sfn ../../custom_components/solar_surplus config/custom_components/solar_surplus
+	@ln -sfn ../../dev/dev_solar config/custom_components/dev_solar
+	@echo "Home Assistant on http://localhost:8123, user dev, password dev"
+	@$(VENV_PYTHON) dev/provision.py & \
+	$(VENV_BIN)/hass -c config
+
+dev-reset:
+	find config -mindepth 1 ! -name .gitkeep -delete
+	@echo "The next make dev sets the test instance up from scratch."
 
 dev-up:
 	@echo "Starting Home Assistant..."

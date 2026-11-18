@@ -12,20 +12,71 @@ logger:
     # Every tick logs the decision and the reason behind it.
     custom_components.solar_surplus: debug
 
+homeassistant:
+  name: Solar Surplus dev
+  unit_system: metric
+  time_zone: Europe/Berlin
+  latitude: 48.1
+  longitude: 11.6
+  country: DE
+  language: en
+
 # --- Development fixtures ---------------------------------------------------
 # A fake house, so the integration can be exercised without real hardware.
-# "Dev solar excess" is what the house would export with every consumer off.
-# The grid meter follows from it and from what the fake consumers draw, so
-# switching one on shows up on the meter the way it would in a real house.
-# Their draw matches the consumers set up for development: heating rod
-# 2000 W, heat pump 1200 W recommended and 2700 W forced, the wallbox what it
-# is set to, the washer 500 W.
+#
+# The sun comes from the dev_solar integration in dev/: "Dev solar power"
+# follows a curve over the day, scaled by the peak power and the clouds set
+# below, and the same curve is the forecast. "Dev solar shift" moves the sun
+# by hours, so it is midday at night too. "Dev passing cloud" dims only what
+# is produced now, not the forecast.
+#
+# The grid meter follows from the sun, the base load and what the fake
+# consumers draw, so switching one on shows on the meter the way it would in
+# a real house: heating rod 2000 W, heat pump 1200 W recommended and 2700 W
+# forced, the wallbox what it is set to, the washer 500 W while its plug is on,
+# and the climate control 600 W while its signal is recommended, 2100 W when
+# forced. "Dev extra export" nudges the meter by hand on top.
 
 input_number:
-  dev_solar_excess:
-    name: Dev solar excess
+  dev_solar_peak:
+    name: Dev solar peak
+    min: 0
+    max: 15000
+    step: 500
+    initial: 8000
+    unit_of_measurement: W
+  dev_solar_clouds:
+    name: Dev solar clouds
+    min: 0
+    max: 100
+    step: 5
+    initial: 0
+    unit_of_measurement: "%"
+  dev_solar_passing_cloud:
+    name: Dev passing cloud
+    min: 0
+    max: 100
+    step: 5
+    initial: 0
+    unit_of_measurement: "%"
+  dev_solar_shift:
+    name: Dev solar shift
+    min: -12
+    max: 12
+    step: 1
+    initial: 0
+    unit_of_measurement: h
+  dev_base_load:
+    name: Dev base load
+    min: 0
+    max: 3000
+    step: 50
+    initial: 400
+    unit_of_measurement: W
+  dev_extra_export:
+    name: Dev extra export
     min: -5000
-    max: 10000
+    max: 5000
     step: 100
     initial: 0
     unit_of_measurement: W
@@ -71,6 +122,14 @@ input_datetime:
 
 template:
   - sensor:
+      - name: Dev climate power
+        unique_id: dev_climate_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >-
+          {{ {'recommended': 600, 'forced': 2100}
+             .get(states('sensor.climate_control_energy_signal'), 0) }}
       - name: Dev grid
         unique_id: dev_grid
         unit_of_measurement: W
@@ -79,11 +138,14 @@ template:
         state: >-
           {% set sg_a = is_state('input_boolean.dev_sg_ready_a', 'on') %}
           {% set sg_b = is_state('input_boolean.dev_sg_ready_b', 'on') %}
-          {{ (0 - states('input_number.dev_solar_excess') | float(0)
+          {{ (states('input_number.dev_base_load') | float(0)
+              - states('sensor.dev_solar_power') | float(0)
+              - states('input_number.dev_extra_export') | float(0)
               + (2000 if is_state('input_boolean.dev_heating_rod', 'on') else 0)
               + (1200 if sg_b else 0) + (1500 if sg_a and sg_b else 0)
               + states('input_number.dev_wallbox_current') | float(0)
-              + (500 if is_state('input_boolean.dev_washer_plug', 'on') else 0))
+              + (500 if is_state('input_boolean.dev_washer_plug', 'on') else 0)
+              + states('sensor.dev_climate_power') | float(0))
              | round(0) }}
       - name: Dev battery
         unique_id: dev_battery

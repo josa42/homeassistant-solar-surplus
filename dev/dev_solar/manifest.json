@@ -1,0 +1,13 @@
+{
+  "domain": "dev_solar",
+  "name": "Dev solar",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/josa42/homeassistant-solar-surplus",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.0.0"
+}

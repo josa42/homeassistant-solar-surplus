@@ -314,24 +314,39 @@ the panel.
 make install    # create the venv and install the test dependencies
 make test       # run the tests
 make lint       # run ruff
-make dev-up     # start a local Home Assistant on http://localhost:8123
-make dev-logs   # follow its logs
-make dev-down   # stop it
+make dev        # a ready-made test instance on http://localhost:8123
+make dev-reset  # forget it, so the next make dev starts from scratch
 ```
 
-`make dev-up` mounts `custom_components/` into the container, so a
-`make dev-restart` picks up code changes.
+`make dev` runs Home Assistant from the venv and sets it up on its first start:
+user `dev` with password `dev`, a simulated solar array with a forecast, and
+Solar Surplus with five test consumers, one of each kind but scripts (a heating
+rod, an SG Ready heat pump, a climate control following a signal, a wallbox and
+a washer). Code changes need a restart: stop it with Ctrl+C and run it again.
 
-The development configuration (`config.template.yaml`) fakes a house: set
-*Dev solar excess* to what the house would export with every consumer off, and
-the *Dev grid* meter follows from it and from what the fake consumers draw
-(heating rod 2000 W, heat pump 1200 W recommended and 2700 W forced, the wallbox
-what it is set to, the washer 500 W). Add consumers with those entities and
-powers to watch the allocation work.
+The house is simulated in `config.template.yaml`, which `make dev` copies over
+every time:
 
-Without Docker, the same instance runs from the test virtual environment:
-link `config/custom_components` to `../custom_components` and start
-`venv/bin/hass -c config`.
+| Entity | What it does |
+| --- | --- |
+| *Dev solar peak* | The array's peak power. |
+| *Dev solar clouds* | Cloud cover, for what is produced and the forecast alike. |
+| *Dev passing cloud* | A cloud now: dims what is produced, not the forecast. |
+| *Dev solar shift* | Moves the sun by hours, so it is midday at night too. |
+| *Dev base load* | What the house draws on its own. |
+| *Dev extra export* | Nudges the grid meter by hand. |
+| *Dev battery power* / *SoC* | A battery the integration reads, set by hand. |
+| *Dev washer ready* | Marks the washer ready to start. |
+
+*Dev solar power* follows a curve over the day, and *Dev grid* follows from it,
+the base load and what the test consumers draw, so switching one on shows on
+the meter as it would in a real house. Changing the peak, the clouds or the
+shift reloads Solar Surplus, so the plan takes up the new forecast at once. The
+array is `dev/dev_solar`, an integration only the test instance loads, and
+`dev/provision.py` sets everything up through the integrations' own flows.
+
+`make dev-up` runs the same configuration in Docker instead, without the
+simulated array and without setting anything up.
 
 <br><br>
 
