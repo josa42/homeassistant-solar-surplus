@@ -58,6 +58,7 @@ from .const import (
     CONF_STATE_ENTITY,
     CONF_SWITCH_ENTITY,
     CONF_TURN_OFF_WHEN_DONE,
+    CONF_WAIT_FOR_BEST,
     CONF_WATTS_PER_UNIT,
     DEFAULT_BASE_LOAD,
     DEFAULT_BATTERY_DISCHARGE_POSITIVE,
@@ -336,6 +337,7 @@ def deferrable_schema(values: dict[str, Any]) -> vol.Schema:
                 "min", 120
             ),
             _default(CONF_TURN_OFF_WHEN_DONE, values, True): _bool(),
+            _default(CONF_WAIT_FOR_BEST, values, True): _bool(),
             _default(CONF_ON_DELAY, values, DEFAULT_ON_DELAY): _number("s", 3600),
         }
     )

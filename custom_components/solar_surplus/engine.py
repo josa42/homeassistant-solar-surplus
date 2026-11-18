@@ -39,12 +39,13 @@ from .models import (
     ConsumerDecision,
     ConsumerInput,
     ConsumerMemory,
+    ConsumerPlan,
     Decision,
     EngineMemory,
-    ForecastPeriod,
     HubMemory,
     Inputs,
 )
+from .plan import make_plan
 
 #: The kinds decided as SG Ready: lock, normal, recommended or forced.
 SG_KINDS = (AdapterType.SG_READY, AdapterType.SIGNAL)
@@ -63,9 +64,12 @@ def decide(
 
     for consumer in consumers:
         _observe(consumer, memory.consumer(consumer.spec.id), now)
+    plan = make_plan(inputs, consumers, ordered, memory)
 
     if inputs.grid is None:
-        return _without_data(inputs, consumers, ordered, memory)
+        decision = _without_data(inputs, consumers, ordered, memory)
+        decision.plan = plan
+        return decision
 
     raw = _surplus(inputs, consumers, memory)
     smoothed = _smooth(memory.hub, raw, now)
@@ -81,6 +85,7 @@ def decide(
             inputs,
             budget,
             import_blocked,
+            plan.get(item),
         )
         budget -= decision.power + decision.reserved
         decisions.append(decision)
@@ -99,6 +104,7 @@ def decide(
         consumers=decisions,
         order=ordered,
         forecast=inputs.forecast,
+        plan=plan,
     )
 
 
@@ -265,6 +271,7 @@ def _decide_consumer(
     inputs: Inputs,
     budget: float,
     import_blocked: bool,
+    plan: ConsumerPlan | None,
 ) -> ConsumerDecision:
     if not consumer.reading.available:
         decision = _decision(consumer, ConsumerState.UNAVAILABLE, Reason.UNAVAILABLE)
@@ -272,7 +279,7 @@ def _decide_consumer(
         return decision
     adapter = consumer.spec.adapter
     if adapter is AdapterType.DEFERRABLE:
-        decision = _deferrable(consumer, memory, inputs, budget)
+        decision = _deferrable(consumer, memory, inputs, budget, plan)
     elif adapter is AdapterType.NUMBER:
         decision = _number(consumer, memory, inputs, budget)
     elif adapter in SG_KINDS:
@@ -574,12 +581,15 @@ def _deferrable(
     memory: ConsumerMemory,
     inputs: Inputs,
     budget: float,
+    plan: ConsumerPlan | None,
 ) -> ConsumerDecision:
     """A consumer that waits to be started, such as a washing machine.
 
-    Once ready it is started as soon as its power fits the surplus, and at the
-    latest so that it is done by its deadline. Once started it runs until it is
-    done: stopping a washing machine halfway helps no one.
+    Once ready it is started when its power fits the surplus: from the start
+    the forecast gives the most solar power on, or at once if it is not to wait
+    for that. At the latest it is started so that it is done by its deadline.
+    Once started it runs until it is done: stopping a washing machine halfway
+    helps no one.
     """
     spec = consumer.spec
     reading = consumer.reading
@@ -622,7 +632,9 @@ def _deferrable(
     if latest_start is not None and now >= latest_start:
         return _start(consumer, memory, inputs, Reason.DEADLINE, details=details)
 
-    if budget >= spec.power:
+    recommended = plan.recommended_start if plan else None
+    waits = spec.wait_for_best and recommended is not None and now < recommended
+    if budget >= spec.power and not waits:
         if memory.pending_since is None:
             memory.pending_since = now
         if now - memory.pending_since >= spec.on_delay:
@@ -633,9 +645,9 @@ def _deferrable(
         )
     memory.pending_since = None
 
-    expected = _expected_start(inputs, spec.power, latest_start)
-    if expected is not None:
-        details["expected_start"] = expected
+    if recommended is not None:
+        details["expected_start"] = recommended
+        details["solar_share"] = plan.solar_share
         return _decision(
             consumer, ConsumerState.WAITING, Reason.WAITING_FORECAST, details=details
         )
@@ -721,26 +733,6 @@ def _deferrable_running(
         power=drawn(consumer),
         details=details,
     )
-
-
-def expected_surplus(inputs: Inputs, period: ForecastPeriod) -> float:
-    """What a forecast period should leave over once the house is served."""
-    settings = inputs.settings
-    return period.watts - settings.base_load - settings.reserve
-
-
-def _expected_start(
-    inputs: Inputs, power: float, latest_start: datetime | None
-) -> datetime | None:
-    """The first time the forecast promises enough surplus, before the latest start."""
-    for period in inputs.forecast:
-        if period.end <= inputs.now:
-            continue
-        if latest_start is not None and period.start >= latest_start:
-            break
-        if expected_surplus(inputs, period) >= power:
-            return max(period.start, inputs.now)
-    return None
 
 
 def next_occurrence(

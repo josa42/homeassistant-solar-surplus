@@ -138,6 +138,10 @@ class StatusSensor(ConsumerEntity, SensorEntity):
             "started_at",
             "expected_end",
             "finished_at",
+            "solar_share",
+            "expected_on",
+            "expected_off",
+            "recommended_start",
         }
     )
 
@@ -164,6 +168,13 @@ class StatusSensor(ConsumerEntity, SensorEntity):
             attributes[key] = (
                 value.isoformat() if hasattr(value, "isoformat") else value
             )
+        plan = self.coordinator.data.plan.get(self._consumer_id)
+        if plan is not None:
+            for key in ("expected_on", "expected_off", "recommended_start"):
+                value = getattr(plan, key)
+                attributes[key] = value.isoformat() if value else None
+            if plan.solar_share is not None:
+                attributes["solar_share"] = plan.solar_share
         return attributes
 
 

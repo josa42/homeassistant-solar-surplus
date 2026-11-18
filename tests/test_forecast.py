@@ -16,12 +16,15 @@ from pytest_homeassistant_custom_component.common import (
     mock_platform,
 )
 
+from custom_components.solar_surplus.const import CONF_FORECAST_ENTRIES
 from custom_components.solar_surplus.forecast import (
     ForecastReader,
     power_now,
     remaining_today,
     to_periods,
 )
+
+from .conftest import HEATING_ROD_DATA, grid, hub
 
 HOUR = timedelta(hours=1)
 
@@ -154,3 +157,32 @@ async def test_what_is_left_of_today(hass: HomeAssistant) -> None:
     )
     assert power_now(periods, now) == 1000
     assert power_now(periods, start - HOUR) is None
+
+
+async def test_each_consumer_says_when_it_is_expected_to_run(
+    hass: HomeAssistant, setup_entry, roof
+) -> None:
+    now = dt_util.now()
+    start = _hour(now)
+    sky = roof(
+        {
+            start: 300,
+            start + HOUR: 3000,
+            start + 2 * HOUR: 3000,
+            start + 3 * HOUR: 300,
+        }
+    )
+    entry = hub(HEATING_ROD_DATA, **{CONF_FORECAST_ENTRIES: [sky.entry_id]})
+    entry.add_to_hass(hass)
+    grid(hass, 0)
+    coordinator = await setup_entry(entry)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.heating_rod_status")
+    # Base load and reserve take 500 W: 2500 W are left for the 2000 W rod.
+    assert dt_util.parse_datetime(state.attributes["expected_on"]) == start + HOUR
+    assert dt_util.parse_datetime(state.attributes["expected_off"]) == start + 3 * HOUR
+    assert state.attributes["recommended_start"] is None
+    plan = coordinator.data.to_dict()["plan"]
+    assert [len(p["windows"]) for p in plan.values()] == [1]

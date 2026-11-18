@@ -56,6 +56,9 @@ class ConsumerSpec:
     lock: bool = False
     #: Deferrable: how long a run takes, and when it counts as finished.
     run_time: timedelta = timedelta(hours=2)
+    #: Deferrable: wait for the start the forecast gives the most solar power,
+    #: rather than start on the first surplus that fits.
+    wait_for_best: bool = True
     finish_power: float = 5
     finish_delay: timedelta = timedelta(minutes=5)
 
@@ -212,6 +215,35 @@ class ConsumerDecision:
 
 
 @dataclass(slots=True)
+class PlanWindow:
+    """A stretch of time a consumer is expected to run."""
+
+    start: datetime
+    end: datetime
+    #: SG Ready and signal: the state it would be in.
+    level: float | None = None
+
+
+@dataclass(slots=True)
+class ConsumerPlan:
+    """When a consumer is expected to run, from the forecast."""
+
+    id: str
+    windows: list[PlanWindow] = field(default_factory=list)
+    #: The first expected run.
+    expected_on: datetime | None = None
+    expected_off: datetime | None = None
+    #: Deferrable: the start the forecast gives the most solar power, and how
+    #: much of the run the forecast surplus would cover then.
+    recommended_start: datetime | None = None
+    solar_share: float | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """A JSON-friendly copy."""
+        return _plain(asdict(self))
+
+
+@dataclass(slots=True)
 class Decision:
     """One run of the allocation."""
 
@@ -229,6 +261,7 @@ class Decision:
     consumers: list[ConsumerDecision]
     order: list[str]
     forecast: tuple[ForecastPeriod, ...] = ()
+    plan: dict[str, ConsumerPlan] = field(default_factory=dict)
 
     def consumer(self, consumer_id: str) -> ConsumerDecision | None:
         """The decision for one consumer, if it is part of this run."""
@@ -248,6 +281,7 @@ class Decision:
             "remaining": _round(self.remaining),
             "consumers": [consumer.to_dict() for consumer in self.consumers],
             "order": list(self.order),
+            "plan": {key: plan.to_dict() for key, plan in self.plan.items()},
             "forecast": [
                 {
                     "start": _plain(p.start),

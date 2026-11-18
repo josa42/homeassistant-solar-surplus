@@ -210,6 +210,7 @@
             "finish_power": "Fertig unter",
             "finish_delay": "Fertig nach",
             "turn_off_when_done": "Nach dem Ende ausschalten",
+            "wait_for_best": "Auf das beste Fenster warten",
             "on_delay": "Starten nach"
           },
           "data_description": {
@@ -220,7 +221,8 @@
             "deadline_entity": "Optional. Datum und Uhrzeit oder eine Uhrzeit. Ohne wird die Uhrzeit unten verwendet.",
             "deadline_time": "Die nächste solche Uhrzeit, nachdem sie bereit wurde.",
             "finish_power": "Mit Leistungssensor ist der Lauf fertig, sobald sie so lange wie unten weniger verbraucht. Ohne, sobald die Laufzeit vorbei ist.",
-            "turn_off_when_done": "Nur bei einem Schalter."
+            "turn_off_when_done": "Nur bei einem Schalter.",
+            "wait_for_best": "Mit Prognose wird sie erst ab dem Start gestartet, an dem die Prognose ihr vor der Deadline am meisten Solarstrom gibt. Aus startet sie beim ersten Überschuss, der reicht."
           }
         },
         "signal": {
@@ -324,7 +326,7 @@
               "grid_import": "Netzbezug",
               "lock_limit": "Sperrgrenze erreicht",
               "not_ready": "Nicht bereit",
-              "waiting_forecast": "Wartet auf den prognostizierten Überschuss",
+              "waiting_forecast": "Wartet auf das beste Fenster",
               "waiting_deadline": "Wartet, startet rechtzeitig zur Deadline",
               "deadline": "Wegen der Deadline gestartet",
               "running": "Läuft",

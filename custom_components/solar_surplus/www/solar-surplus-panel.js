@@ -44,6 +44,7 @@ const STRINGS = {
     "forecast.none": "No forecast configured.",
     "forecast.remaining": "{value} left today",
     "forecast.threshold": "Base load and reserve",
+    "forecast.plan": "Expected to run",
     "list.title": "Priority",
     "list.hint": "Served from the top. Drag a row, or use the arrows, to change the order.",
     "list.empty": "No consumers yet. Add one on the integration's page.",
@@ -85,7 +86,9 @@ const STRINGS = {
     "reason.grid_import_signal": "Drawing from the grid with the battery empty",
     "reason.lock_limit": "Lock limit reached; can lock again from {until}",
     "reason.not_ready": "Not ready",
-    "reason.waiting_forecast": "Waiting for the surplus expected from {expected_start}",
+    "reason.waiting_forecast": "Waiting for the best window from {expected_start}",
+    "detail.expected": "expected {start}–{end}",
+    "detail.solar_share": "{share} solar expected",
     "reason.waiting_deadline": "No surplus expected; starts at {latest_start}",
     "reason.deadline": "Started to be done by {deadline}",
     "reason.running": "Running since {started_at}",
@@ -122,6 +125,7 @@ const STRINGS = {
     "forecast.none": "Keine Prognose eingerichtet.",
     "forecast.remaining": "heute noch {value}",
     "forecast.threshold": "Grundlast und Reserve",
+    "forecast.plan": "Läuft voraussichtlich",
     "list.title": "Priorität",
     "list.hint": "Von oben nach unten bedient. Zeile ziehen oder Pfeile nutzen, um die Reihenfolge zu ändern.",
     "list.empty": "Noch keine Verbraucher. Auf der Seite der Integration hinzufügen.",
@@ -163,7 +167,9 @@ const STRINGS = {
     "reason.grid_import_signal": "Netzbezug bei leerer Batterie",
     "reason.lock_limit": "Sperrgrenze erreicht; wieder möglich ab {until}",
     "reason.not_ready": "Nicht bereit",
-    "reason.waiting_forecast": "Wartet auf den ab {expected_start} erwarteten Überschuss",
+    "reason.waiting_forecast": "Wartet auf das beste Fenster ab {expected_start}",
+    "detail.expected": "voraussichtlich {start}–{end}",
+    "detail.solar_share": "voraussichtlich {share} Solar",
     "reason.waiting_deadline": "Kein Überschuss erwartet; startet um {latest_start}",
     "reason.deadline": "Gestartet, um bis {deadline} fertig zu sein",
     "reason.running": "Läuft seit {started_at}",
@@ -257,6 +263,10 @@ function formatTime(hass, iso) {
   return new Intl.DateTimeFormat(lang, options).format(date);
 }
 
+function formatShare(hass, share) {
+  return new Intl.NumberFormat(language(hass), { style: "percent", maximumFractionDigits: 0 }).format(share);
+}
+
 function hourLabel(hass, iso) {
   const lang = language(hass);
   return new Intl.DateTimeFormat(lang, { ...clock(hass), timeZone: timeZone(hass) }).format(new Date(iso));
@@ -272,7 +282,7 @@ function clock(hass) {
 
 // The reason, filled in with the figures behind it, plus what a deferrable
 // consumer is working towards.
-function reasonText(hass, consumer) {
+function reasonText(hass, consumer, plan) {
   const d = consumer.details || {};
   const values = {
     available: formatPower(hass, d.available),
@@ -292,7 +302,12 @@ function reasonText(hass, consumer) {
     } else if (consumer.state === "waiting") {
       if (consumer.reason !== "waiting_deadline" && d.latest_start) parts.push(t(hass, "detail.latest_start", values));
       if (d.deadline) parts.push(t(hass, "detail.deadline", values));
+      if (d.solar_share !== undefined && d.solar_share !== null) {
+        parts.push(t(hass, "detail.solar_share", { share: formatShare(hass, d.solar_share) }));
+      }
     }
+  } else if (plan?.expected_on && !["on", "running"].includes(consumer.state)) {
+    parts.push(t(hass, "detail.expected", { start: formatTime(hass, plan.expected_on), end: formatTime(hass, plan.expected_off) }));
   }
   return parts.filter(Boolean).join(" · ");
 }
@@ -451,6 +466,28 @@ const STYLE = `
   .forecast .bar { fill: color-mix(in srgb, var(--warning-color, #ffa600) 70%, transparent); }
   .forecast .bar.now { fill: var(--warning-color, #ffa600); }
   .forecast .threshold { stroke: var(--secondary-text-color, #727272); stroke-dasharray: 4 3; }
+  .forecast .plan { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .forecast .plan h3 {
+    margin: 0;
+    font-size: var(--ha-font-size-s, 13px);
+    font-weight: 500;
+    color: var(--secondary-text-color, #727272);
+  }
+  .forecast .plan-row .name { font-size: var(--ha-font-size-s, 13px); }
+  .forecast .track {
+    position: relative;
+    height: 10px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--secondary-text-color, #727272) 12%, transparent);
+  }
+  .forecast .run {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 5px;
+    background: var(--ss-on);
+  }
+  .forecast .run.forced { background: var(--ss-run); }
   .forecast .legend {
     display: flex;
     justify-content: space-between;
@@ -852,6 +889,7 @@ class SolarSurplusPanel extends HTMLElement {
     card.append(
       svg,
       hours,
+      this._renderPlan(shown),
       h(
         "div",
         { class: "legend" },
@@ -860,6 +898,46 @@ class SolarSurplusPanel extends HTMLElement {
       )
     );
     return card;
+  }
+
+  // One track per consumer under the bars, on the same time axis: when the
+  // forecast expects it to run.
+  _renderPlan(shown) {
+    const hass = this._hass;
+    const plans = this._state.decision?.plan || {};
+    const consumers = this._state.consumers || {};
+    const rows = this._order().filter((id) => consumers[id] && plans[id]?.windows?.length);
+    const box = h("div", { class: "plan" });
+    if (!rows.length || !shown.length) return box;
+    const bounds = shown.map((p) => [new Date(p.start).getTime(), new Date(p.end).getTime()]);
+    const at = (iso) => {
+      const time = new Date(iso).getTime();
+      if (time <= bounds[0][0]) return 0;
+      for (let i = 0; i < bounds.length; i++) {
+        const [start, end] = bounds[i];
+        if (time <= end) return (i + Math.max(0, time - start) / (end - start)) / bounds.length;
+      }
+      return 1;
+    };
+    box.append(h("h3", { text: t(hass, "forecast.plan") }));
+    for (const id of rows) {
+      const track = h("div", { class: "track" });
+      for (const w of plans[id].windows) {
+        const left = at(w.start);
+        const right = at(w.end);
+        if (right <= left) continue;
+        const level = SIGNAL_LEVELS[w.level];
+        const run = h("div", {
+          class: `run${level === "forced" ? " forced" : ""}`,
+          title: `${formatTime(hass, w.start)}–${formatTime(hass, w.end)}${level ? ` · ${t(hass, `signal.${level}`)}` : ""}`,
+        });
+        run.style.left = `${left * 100}%`;
+        run.style.width = `${(right - left) * 100}%`;
+        track.append(run);
+      }
+      box.append(h("div", { class: "plan-row" }, h("div", { class: "name", text: consumers[id].title }), track));
+    }
+    return box;
   }
 
   _renderList() {
@@ -947,7 +1025,7 @@ class SolarSurplusPanel extends HTMLElement {
           this._chip(consumer, decision, state),
           h("span", { class: "kind", text: `${t(hass, `adapter.${consumer.adapter}`)} · ${formatPower(hass, consumer.power)}` })
         ),
-        h("div", { class: "reason", text: decision ? reasonText(hass, decision) : "" })
+        h("div", { class: "reason", text: decision ? reasonText(hass, decision, this._state.decision?.plan?.[id]) : "" })
       ),
       h("div", { class: "side" }, h("span", { class: "power", text: power }), segmented, this._arrows(id, index, count))
     );

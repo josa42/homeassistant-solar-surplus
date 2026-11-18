@@ -96,6 +96,9 @@ CONF_RUN_TIME: Final = "run_time"
 CONF_FINISH_POWER: Final = "finish_power"
 CONF_FINISH_DELAY: Final = "finish_delay"
 CONF_TURN_OFF_WHEN_DONE: Final = "turn_off_when_done"
+#: Wait for the start the forecast gives the most solar power, rather than
+#: start on the first surplus that fits.
+CONF_WAIT_FOR_BEST: Final = "wait_for_best"
 
 DEFAULT_MIN_ON_TIME: Final = 10
 DEFAULT_MIN_OFF_TIME: Final = 5

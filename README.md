@@ -116,6 +116,7 @@ A **deferrable** consumer has its own settings:
 | Run time | 120 min | How long a run takes. The latest start is the deadline minus this. |
 | Done below / Done after | 5 W / 5 min | With a power sensor, the run is done once it draws less for this long. |
 | Turn off when done | on | Turn a start switch off after the run, so the next start is a fresh one. |
+| Wait for the best window | on | With a forecast, start from the start the forecast gives the most solar power, before the deadline. Off, start on the first surplus that fits. |
 | Start after | 60 s | Enough surplus has to hold this long before it is started. |
 
 Its power should be what it draws on average while it runs: it starts once that
@@ -141,7 +142,7 @@ Each consumer gets a device of its own:
 
 | Entity | What it shows |
 | --- | --- |
-| `sensor.<consumer>_status` | `off`, `on`, `locked`, `waiting`, `running`, `done`, `idle` (not ready) or `unavailable`. The `reason` attribute says why, the others give the figures behind it: the power `needed`, the surplus `available` at its place in the order, `until` when a delay or minimum time runs out, and for a deferrable consumer its `deadline`, `latest_start` and `expected_start`. |
+| `sensor.<consumer>_status` | `off`, `on`, `locked`, `waiting`, `running`, `done`, `idle` (not ready) or `unavailable`. The `reason` attribute says why, the others give the figures behind it: the power `needed`, the surplus `available` at its place in the order, `until` when a delay or minimum time runs out, and for a deferrable consumer its `deadline`, `latest_start` and `expected_start`. With a forecast, `expected_on` and `expected_off` say when it is next expected to run, and a deferrable consumer's `recommended_start` and `solar_share` when its run gets the most solar power, and how much of it. |
 | `select.<consumer>_mode` | `auto` lets the allocation decide, `on` and `off` put a hand on it. |
 | `sensor.<consumer>_energy_signal` | Only for a signal: what it tells, see below. |
 
@@ -166,6 +167,21 @@ own signal and their own place. What the consumer following it draws counts as
 the signal's own, from its power sensor or else its power, so the signal does
 not switch itself off once it is followed. Without a grid reading the sensor is
 `unavailable` rather than a guess. Test mode does not change it.
+
+### Plan
+
+With a forecast, the allocation is also carried out for each forecast period
+ahead, on the surplus the forecast leaves once base load and reserve are taken
+off. Each consumer in priority order takes what it would take in that period,
+so a consumer low in the order only shows up where the ones above it are
+served. A ready deferrable consumer is planned at the start that gives its run
+the most solar power before its deadline, and the consumers below it see what
+it leaves.
+
+The panel draws this under the forecast, one track per consumer, and the status
+sensors carry the next expected run as attributes. It is a forecast and no
+more: it knows nothing of clouds within the hour or of what else the house
+draws beyond its base load, and the battery is not part of it.
 
 ### Test mode
 
@@ -207,11 +223,13 @@ The integration adds **Solar Surplus** to the sidebar. It shows:
 - the surplus (smoothed, and what it is right now), the grid, the battery, what
   is handed out and what is left
 - the forecast for the next hours as bars, against the line of base load and
-  reserve that a forecast hour has to clear before it counts as surplus
+  reserve that a forecast hour has to clear before it counts as surplus, and
+  below it when each consumer is expected to run, see [Plan](#plan)
 - every consumer in priority order, with what it is doing, why, and the figures
   behind it: the surplus it saw at its place, until when a delay or minimum time
-  runs, and for a deferrable consumer by when it starts at the latest and by
-  when it is done, and for a signal what it tells
+  runs, when it is next expected to run, and for a deferrable consumer by when
+  it starts at the latest, by when it is done, and how much of its run the sun
+  is expected to cover, and for a signal what it tells
 
 Admins can change the order by dragging a row or with its arrows, put a hand on
 a consumer (Auto, On, Off), and turn control and test mode on or off. Everyone
@@ -259,15 +277,15 @@ Each kind adds its own rules:
 - **Scripts** run the on or the off entity. Without an entity that says whether
   the consumer is on, it counts as what it was last told.
 - **Deferrable** consumers wait until their ready entity is on. Then they start
-  as soon as their power fits, and at the latest at the deadline minus their run
-  time. Once started they are never stopped. A run is done once the power sensor
+  once their power fits: with a forecast from the start the [plan](#plan) gives
+  the most solar power, unless *Wait for the best window* is off, and at the
+  latest at the deadline minus their run time. Once started they are never stopped. A run is done once the power sensor
   stays below *Done below* for *Done after*, or without a sensor once the run
   time is over. A start switch is then turned off, if asked to, and a ready
   `input_boolean` is turned off as well; while the ready entity stays on, it is
   not started again. The deadline comes from a `datetime`, `input_datetime`,
   `time` or timestamp `sensor`; a time of day is its next occurrence after the
   consumer became ready, and without an entity the configured time is used.
-  While a consumer waits, the forecast says when enough surplus is expected.
 
 With a hand on a consumer (*Mode* on or off, or the panel) the allocation leaves
 it alone: on is on, off is off, at once. A deferrable consumer set to on starts

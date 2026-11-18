@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- **Plan**: with a forecast, the allocation is carried out for each forecast
+  period ahead. The panel shows under the forecast when each consumer is
+  expected to run, and the status sensors carry `expected_on` and
+  `expected_off`.
+- **Best window** for deferrable consumers: the start where the forecast covers
+  most of the run, before the deadline, shown with its expected solar share as
+  `recommended_start` and `solar_share`. With *Wait for the best window* on, the
+  default, they start from there rather than on the first surplus.
+
 ### Changed
 
 - **Signals** are no longer blocked while drawing from the grid unless asked

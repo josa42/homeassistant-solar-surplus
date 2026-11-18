@@ -46,6 +46,7 @@ from .const import (
     CONF_STATE_ENTITY,
     CONF_SWITCH_ENTITY,
     CONF_TURN_OFF_WHEN_DONE,
+    CONF_WAIT_FOR_BEST,
     CONF_WATTS_PER_UNIT,
     DEFAULT_DEADLINE_TIME,
     DEFAULT_FINISH_DELAY,
@@ -98,6 +99,7 @@ def build_spec(consumer_id: str, data: Mapping[str, Any]) -> ConsumerSpec:
         forced_power=float(forced) if forced is not None else None,
         lock=bool(data.get(CONF_SG_LOCK, False)),
         run_time=timedelta(minutes=data.get(CONF_RUN_TIME, DEFAULT_RUN_TIME)),
+        wait_for_best=bool(data.get(CONF_WAIT_FOR_BEST, True)),
         finish_power=float(data.get(CONF_FINISH_POWER, DEFAULT_FINISH_POWER)),
         finish_delay=timedelta(
             minutes=data.get(CONF_FINISH_DELAY, DEFAULT_FINISH_DELAY)

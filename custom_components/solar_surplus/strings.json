@@ -210,6 +210,7 @@
             "finish_power": "Done below",
             "finish_delay": "Done after",
             "turn_off_when_done": "Turn off when done",
+            "wait_for_best": "Wait for the best window",
             "on_delay": "Start after"
           },
           "data_description": {
@@ -220,7 +221,8 @@
             "deadline_entity": "Optional. A date and time, or a time of day. Without it, the time below is used.",
             "deadline_time": "The next time of day after it became ready.",
             "finish_power": "With a power sensor, the run is done once it draws less than this for the time below. Without one, once the run time is over.",
-            "turn_off_when_done": "Only for a switch."
+            "turn_off_when_done": "Only for a switch.",
+            "wait_for_best": "With a forecast, it is started from the start the forecast gives the most solar power on, before its deadline. Off, it starts on the first surplus that fits."
           }
         },
         "signal": {
@@ -324,7 +326,7 @@
               "grid_import": "Drawing from the grid",
               "lock_limit": "Lock limit reached",
               "not_ready": "Not ready",
-              "waiting_forecast": "Waiting for the forecast surplus",
+              "waiting_forecast": "Waiting for the best window",
               "waiting_deadline": "Waiting, starts by its deadline",
               "deadline": "Started for its deadline",
               "running": "Running",

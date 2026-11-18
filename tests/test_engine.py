@@ -484,15 +484,42 @@ def test_a_ready_consumer_waits_for_the_forecast_surplus() -> None:
     assert w.details["latest_start"] == DEADLINE - timedelta(hours=2)
 
 
-def test_without_a_forecast_surplus_it_waits_for_its_deadline() -> None:
+def test_the_latest_start_can_be_the_best() -> None:
     house = ready_washer()
     w = house.run(0, forecast=forecast(300, 300, 300, 300, 1500, 1500, 1500)).consumer(
         "washer"
     )
-    assert w.reason is Reason.WAITING_DEADLINE, (
-        "the forecast surplus comes after the latest start"
-    )
+    assert w.reason is Reason.WAITING_FORECAST
+    assert w.details["expected_start"] == DEADLINE - timedelta(hours=2)
+    assert w.details["solar_share"] == 1.0
+
+
+def test_without_a_forecast_surplus_it_waits_for_its_deadline() -> None:
+    house = ready_washer()
+    w = house.run(0, forecast=forecast(*[300] * 8)).consumer("washer")
+    assert w.reason is Reason.WAITING_DEADLINE
     assert w.details["until"] == DEADLINE - timedelta(hours=2)
+
+
+def test_it_waits_for_the_best_window() -> None:
+    house = ready_washer()
+    # The sun is out now, but the forecast leaves only 400 of its 500 W at
+    # noon, and all of it from 13:00.
+    sky = forecast(800, 1500, 1500, 300, 300, 300)
+    w = house.run(1000, forecast=sky).consumer("washer")
+    assert w.state is ConsumerState.WAITING
+    assert w.details["expected_start"] == T0 + timedelta(hours=1)
+
+    w = house.run(1000, after=timedelta(hours=1), forecast=sky).consumer("washer")
+    assert w.start is True, "the best window has come"
+
+
+def test_it_can_start_on_the_first_surplus_instead() -> None:
+    house = ready_washer(wait_for_best=False)
+    sky = forecast(800, 1500, 1500, 300, 300, 300)
+    w = house.run(1000, forecast=sky).consumer("washer")
+    assert w.start is True
+    assert w.reason is Reason.SURPLUS
 
 
 def test_it_starts_in_time_for_its_deadline() -> None:
