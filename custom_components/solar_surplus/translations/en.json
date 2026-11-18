@@ -19,7 +19,7 @@
         },
         "data_description": {
           "grid_power": "The meter at the grid connection. By default positive means drawing from the grid.",
-          "battery_power": "Optional. By default positive means the battery charges.",
+          "battery_power": "Optional. By default positive means the battery discharges, as in the energy dashboard. Inverters differ: with no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts.",
           "battery_soc": "Optional. Without it, what the battery charges with is never handed out.",
           "battery_target_soc": "Below this charge, what the battery charges with is not handed out to consumers.",
           "battery_min_soc": "At or below this charge, drawing from the grid blocks the energy signal.",
@@ -61,7 +61,7 @@
         },
         "data_description": {
           "grid_power": "The meter at the grid connection. By default positive means drawing from the grid.",
-          "battery_power": "Optional. By default positive means the battery charges.",
+          "battery_power": "Optional. By default positive means the battery discharges, as in the energy dashboard. Inverters differ: with no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts.",
           "battery_soc": "Optional. Without it, what the battery charges with is never handed out.",
           "battery_target_soc": "Below this charge, what the battery charges with is not handed out to consumers.",
           "battery_min_soc": "At or below this charge, drawing from the grid blocks the energy signal.",

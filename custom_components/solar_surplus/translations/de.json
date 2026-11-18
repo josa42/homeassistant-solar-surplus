@@ -19,7 +19,7 @@
         },
         "data_description": {
           "grid_power": "Der Zähler am Netzanschluss. Standardmäßig bedeutet positiv Bezug aus dem Netz.",
-          "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie lädt.",
+          "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie entlädt, wie im Energie-Dashboard. Wechselrichter zählen unterschiedlich: Ohne Sonne und ohne Netzbezug entlädt die Batterie, daran lässt sich die Richtung des Sensors ablesen.",
           "battery_soc": "Optional. Ohne ihn wird die Ladeleistung der Batterie nie verteilt.",
           "battery_target_soc": "Unter diesem Ladestand wird die Ladeleistung der Batterie nicht an Verbraucher verteilt.",
           "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug das Energiesignal.",
@@ -61,7 +61,7 @@
         },
         "data_description": {
           "grid_power": "Der Zähler am Netzanschluss. Standardmäßig bedeutet positiv Bezug aus dem Netz.",
-          "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie lädt.",
+          "battery_power": "Optional. Standardmäßig bedeutet positiv, dass die Batterie entlädt, wie im Energie-Dashboard. Wechselrichter zählen unterschiedlich: Ohne Sonne und ohne Netzbezug entlädt die Batterie, daran lässt sich die Richtung des Sensors ablesen.",
           "battery_soc": "Optional. Ohne ihn wird die Ladeleistung der Batterie nie verteilt.",
           "battery_target_soc": "Unter diesem Ladestand wird die Ladeleistung der Batterie nicht an Verbraucher verteilt.",
           "battery_min_soc": "Bei oder unter diesem Ladestand sperrt Netzbezug das Energiesignal.",

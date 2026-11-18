@@ -43,6 +43,7 @@ from .const import (
     CONF_SIGNAL_RECOMMENDED,
     CONF_SIGNAL_RISE_DELAY,
     DEFAULT_BASE_LOAD,
+    DEFAULT_BATTERY_DISCHARGE_POSITIVE,
     DEFAULT_BATTERY_MIN_SOC,
     DEFAULT_BATTERY_TARGET_SOC,
     DEFAULT_RESERVE,
@@ -289,7 +290,9 @@ class SolarSurplusCoordinator(DataUpdateCoordinator[Decision]):
         if grid is not None and self.values.get(CONF_GRID_EXPORT_POSITIVE):
             grid = -grid
         battery = as_watts(self._state(CONF_BATTERY_POWER))
-        if battery is not None and self.values.get(CONF_BATTERY_DISCHARGE_POSITIVE):
+        if battery is not None and self.values.get(
+            CONF_BATTERY_DISCHARGE_POSITIVE, DEFAULT_BATTERY_DISCHARGE_POSITIVE
+        ):
             battery = -battery
         followers = sum(
             max(value, 0.0)

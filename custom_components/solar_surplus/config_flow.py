@@ -67,6 +67,7 @@ from .const import (
     CONF_TURN_OFF_WHEN_DONE,
     CONF_WATTS_PER_UNIT,
     DEFAULT_BASE_LOAD,
+    DEFAULT_BATTERY_DISCHARGE_POSITIVE,
     DEFAULT_BATTERY_MIN_SOC,
     DEFAULT_BATTERY_TARGET_SOC,
     DEFAULT_DEADLINE_TIME,
@@ -200,7 +201,9 @@ def hub_schema(
         ): _entity("sensor", "power"),
         _default(CONF_GRID_EXPORT_POSITIVE, values, False): _bool(),
         _suggest(CONF_BATTERY_POWER, values): _entity("sensor", "power"),
-        _default(CONF_BATTERY_DISCHARGE_POSITIVE, values, False): _bool(),
+        _default(
+            CONF_BATTERY_DISCHARGE_POSITIVE, values, DEFAULT_BATTERY_DISCHARGE_POSITIVE
+        ): _bool(),
         _suggest(CONF_BATTERY_SOC, values): _entity("sensor", "battery"),
         _default(CONF_BATTERY_TARGET_SOC, values, DEFAULT_BATTERY_TARGET_SOC): _number(
             "%", 100

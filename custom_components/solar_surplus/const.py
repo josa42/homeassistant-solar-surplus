@@ -59,6 +59,8 @@ CONF_SIGNAL_FOLLOWERS: Final = "signal_followers"
 #: or entity; without one, a persistent notification.
 CONF_NOTIFY_TARGET: Final = "notify_target"
 
+#: Positive battery power means discharging, as in the energy dashboard.
+DEFAULT_BATTERY_DISCHARGE_POSITIVE: Final = True
 DEFAULT_BATTERY_TARGET_SOC: Final = 90
 DEFAULT_BATTERY_MIN_SOC: Final = 20
 DEFAULT_RESERVE: Final = 100

@@ -187,6 +187,17 @@ async def test_meters_are_read_in_any_sign_and_unit(
     assert decision.surplus == 2500 - 1000 - 100
 
 
+async def test_battery_power_is_positive_when_discharging_by_default(
+    hass: HomeAssistant, setup_entry
+) -> None:
+    grid(hass, 0)
+    hass.states.async_set("sensor.battery", "440", {"unit_of_measurement": "W"})
+    _, coordinator = await start(
+        hass, setup_entry, HEATING_ROD_DATA, **{CONF_BATTERY_POWER: "sensor.battery"}
+    )
+    assert coordinator.data.battery == -440, "the evening: the house runs on it"
+
+
 async def test_a_variable_consumer_is_set(hass: HomeAssistant, setup_entry) -> None:
     grid(hass, -2400)
     _, coordinator = await start(hass, setup_entry, WALLBOX_DATA)

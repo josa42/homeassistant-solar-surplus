@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Battery power** is read as positive when discharging by default, as in the
+  energy dashboard. Entries set up before keep the direction they were set up
+  with.
+
 ## 0.1.0 - 2026-11-18
 
 ### Added

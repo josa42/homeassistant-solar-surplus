@@ -52,7 +52,7 @@ consumer**.
 | Setting | Default | What it does |
 | --- | --- | --- |
 | Grid power | | The meter at the grid connection. Positive means drawing from the grid, unless *Grid power is positive when exporting* is on. |
-| Battery power | | Optional. Positive means the battery charges, unless *Battery power is positive when discharging* is on. |
+| Battery power | | Optional. Positive means the battery discharges, as in the energy dashboard. Inverters differ: turn off *Battery power is positive when discharging* if yours counts charging as positive. With no sun and nothing drawn from the grid, the battery discharges, and that tells which way the sensor counts. |
 | Battery charge | | Optional. The battery's state of charge. |
 | Battery first up to | 90 % | Below this charge, what the battery charges with is not handed out. |
 | Battery counts as empty at | 20 % | At or below this, drawing from the grid blocks the energy signal. |
