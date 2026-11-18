@@ -37,6 +37,7 @@ async def test_subscribing_pushes_every_run(
     }
     assert first["control_enabled"] is True
     assert first["has_forecast"] is False
+    assert first["soc_entity"] is None
     assert first["settings"]["reserve"] == 100
     assert first["decision"]["order"] == [rod]
     assert first["decision"]["consumers"][0]["state"] == "on"

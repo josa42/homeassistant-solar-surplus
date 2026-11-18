@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DOMAIN, AdapterType, Override
+from .const import CONF_BATTERY_SOC, DOMAIN, AdapterType, Override
 from .coordinator import SIGNAL_UPDATE, SolarSurplusCoordinator
 
 
@@ -46,6 +46,8 @@ def panel_state(coordinator: SolarSurplusCoordinator) -> dict[str, Any]:
         "control_enabled": coordinator.control_enabled,
         "test_mode": coordinator.test_mode,
         "has_forecast": coordinator.forecast.configured,
+        # For the panel to draw the battery's charge from the history.
+        "soc_entity": coordinator.values.get(CONF_BATTERY_SOC),
         "consumers": {
             consumer_id: {
                 "title": consumer.title,

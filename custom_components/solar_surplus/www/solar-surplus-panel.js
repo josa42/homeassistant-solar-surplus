@@ -60,6 +60,7 @@ const STRINGS = {
     "forecast.none": "No forecast configured.",
     "forecast.remaining": "{value} left today",
     "forecast.threshold": "Base load and reserve",
+    "forecast.soc": "Battery charge",
     "forecast.total": "{value} expected",
     "forecast.today": "Today",
     "forecast.previous": "Previous day",
@@ -153,6 +154,7 @@ const STRINGS = {
     "forecast.none": "Keine Prognose eingerichtet.",
     "forecast.remaining": "heute noch {value}",
     "forecast.threshold": "Grundlast und Reserve",
+    "forecast.soc": "Batterieladung",
     "forecast.total": "{value} erwartet",
     "forecast.today": "Heute",
     "forecast.previous": "Vorheriger Tag",
@@ -418,6 +420,7 @@ const STYLE = `
     --ss-off: var(--disabled-text-color, #9e9e9e);
     --ss-locked: var(--error-color, #db4437);
     --ss-run: var(--info-color, #039be5);
+    --ss-soc: var(--energy-battery-out-color, #4db6ac);
   }
   .toolbar {
     flex: 0 0 var(--header-height, 56px);
@@ -607,6 +610,10 @@ const STYLE = `
   .forecast .bar { fill: color-mix(in srgb, var(--warning-color, #ffa600) 70%, transparent); }
   .forecast .bar.past { fill: color-mix(in srgb, var(--warning-color, #ffa600) 35%, transparent); }
   .forecast .threshold { stroke: var(--secondary-text-color, #727272); stroke-dasharray: 4 3; }
+  .forecast path.soc { fill: none; stroke: var(--ss-soc); stroke-width: 2; stroke-linejoin: round; }
+  .forecast .legend .keys { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; }
+  .forecast .legend .keys span { display: inline-flex; align-items: center; gap: 6px; }
+  .forecast .legend i.soc { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--ss-soc); }
   .forecast .plan { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
   .forecast .plan h3 {
     margin: 0;
@@ -1057,6 +1064,15 @@ class SolarSurplusPanel extends HTMLElement {
     const threshold = (settings.base_load || 0) + (settings.reserve || 0);
     const peak = Math.max(threshold, ...periods.map((p) => p.watts), 1);
 
+    const at = (value) => {
+      const time = new Date(value).getTime();
+      if (time <= first) return 0;
+      for (let i = 0; i < bounds.length; i++) {
+        const [start, end] = bounds[i];
+        if (time <= end) return (i + Math.max(0, time - start) / (end - start)) / bounds.length;
+      }
+      return 1;
+    };
     const width = 480;
     const height = 120;
     const plot = height;
@@ -1091,24 +1107,34 @@ class SolarSurplusPanel extends HTMLElement {
       line.setAttribute("vector-effect", "non-scaling-stroke");
       svg.append(line);
     }
+    // The battery's charge over the bars, on a scale of its own: 0 to 100 %.
+    const soc = [...(this._history[day]?.soc || [])];
+    const current = this._state.decision?.soc;
+    if (isToday && soc.length && current !== null && current !== undefined) soc.push([now, current]);
+    const socPath = soc
+      .map(([time, value], i) => {
+        const x = at(time) * width;
+        const y = plot - (Math.min(Math.max(value, 0), 100) / 100) * (plot - 4);
+        // A step: the value holds until the next one.
+        return i ? `H${x.toFixed(1)}V${y.toFixed(1)}` : `M${x.toFixed(1)} ${y.toFixed(1)}`;
+      })
+      .join("");
+    if (soc.length) {
+      const path = document.createElementNS(ns, "path");
+      path.setAttribute("class", "soc");
+      path.setAttribute("d", socPath);
+      path.setAttribute("vector-effect", "non-scaling-stroke");
+      svg.append(path);
+    }
     // The hours go below in HTML: the SVG stretches to the card's width, and
     // text inside it would stretch along.
     const every = Math.max(1, Math.ceil(bounds.length / 8));
     const hours = h("div", { class: "hours" });
     bounds.forEach(([start], i) => hours.append(h("span", { text: i % every === 0 ? hourLabel(hass, start) : "" })));
 
-    const at = (value) => {
-      const time = new Date(value).getTime();
-      if (time <= first) return 0;
-      for (let i = 0; i < bounds.length; i++) {
-        const [start, end] = bounds[i];
-        if (time <= end) return (i + Math.max(0, time - start) / (end - start)) / bounds.length;
-      }
-      return 1;
-    };
     const chart = h("div", { class: "chart" });
-    if (shown.length) chart.append(svg);
-    else chart.append(h("div", { class: "hint", text: t(hass, this._state.has_forecast ? "forecast.no_forecast" : "forecast.none") }));
+    if (shown.length || soc.length) chart.append(svg);
+    if (!shown.length) chart.append(h("div", { class: "hint", text: t(hass, this._state.has_forecast ? "forecast.no_forecast" : "forecast.none") }));
     chart.append(hours, this._renderTracks(at, first, last, now));
     if (isToday) {
       const marker = h("div", { class: "now-line", title: formatTime(hass, new Date(now).toISOString()) });
@@ -1123,7 +1149,13 @@ class SolarSurplusPanel extends HTMLElement {
           : "",
       })
     );
-    if (shown.length) legend.append(h("span", { text: `– – ${t(hass, "forecast.threshold")} (${formatPower(hass, threshold)})` }));
+    const keys = h("span", { class: "keys" });
+    if (shown.length) keys.append(h("span", { text: `– – ${t(hass, "forecast.threshold")} (${formatPower(hass, threshold)})` }));
+    if (soc.length) {
+      const latest = soc[soc.length - 1][1];
+      keys.append(h("span", {}, h("i", { class: "soc" }), `${t(hass, "forecast.soc")} (${Math.round(latest)} %)`));
+    }
+    legend.append(keys);
     card.append(chart, legend);
     if (first < now) this._loadHistory(day, first, Math.min(last, now), isToday);
     return card;
@@ -1163,7 +1195,11 @@ class SolarSurplusPanel extends HTMLElement {
     const cached = this._history[day];
     if (cached && (cached.loading || !isToday || Date.now() - cached.at < HISTORY_REFRESH)) return;
     const consumers = this._state.consumers || {};
-    const entities = Object.values(consumers).flatMap((c) => [c.status_entity, c.signal_entity]).filter(Boolean);
+    const socEntity = this._state.soc_entity;
+    const entities = [
+      ...Object.values(consumers).flatMap((c) => [c.status_entity, c.signal_entity]),
+      socEntity,
+    ].filter(Boolean);
     if (!entities.length || !this._hass?.callWS) return;
     this._history[day] = { ...(cached || {}), loading: true };
     try {
@@ -1176,11 +1212,18 @@ class SolarSurplusPanel extends HTMLElement {
         no_attributes: true,
         significant_changes_only: false,
       });
-      this._history[day] = { at: Date.now(), runs: this._runs(result, start, end) };
+      this._history[day] = { at: Date.now(), runs: this._runs(result, start, end), soc: this._soc(result?.[socEntity], start) };
     } catch (err) {
-      this._history[day] = { at: Date.now(), runs: cached?.runs || {} };
+      this._history[day] = { at: Date.now(), runs: cached?.runs || {}, soc: cached?.soc || [] };
     }
     if (!this._dragId) this._render();
+  }
+
+  // The battery's charge from the history, as [time, percent] points.
+  _soc(rows, start) {
+    return (rows || [])
+      .map((row) => [Math.max((row.lu ?? row.lc ?? 0) * 1000, start), Number.parseFloat(row.s)])
+      .filter(([, value]) => Number.isFinite(value));
   }
 
   // The history as runs per consumer: when it was on, forced or locked.

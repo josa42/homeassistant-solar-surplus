@@ -12,6 +12,7 @@
   current time, and steps through the last seven days and the days the
   forecast covers. Below it, each consumer's track shows what ran, from the
   history, next to what is expected to run, with a legend for the colors.
+  With a battery SoC sensor, a line over the bars shows the battery's charge.
 - **Best window** for deferrable consumers: the start where the forecast covers
   most of the run, before the deadline, shown with its expected solar share as
   `recommended_start` and `solar_share`. With *Wait for the best window* on, the

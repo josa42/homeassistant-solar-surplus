@@ -225,7 +225,8 @@ remembers which one was open last. **Overview** shows:
   is handed out and what is left
 - the forecast for a whole day as bars, today by default with a line at the
   current time, against the line of base load and reserve that a forecast hour
-  has to clear before it counts as surplus
+  has to clear before it counts as surplus, and with a battery SoC sensor the
+  battery's charge over the day from its history, on a scale of 0 to 100 %
 - below it, one track per consumer: what ran, from the history of its status
   or signal sensor, and what is expected to run, see [Plan](#plan), lighter.
   Green is on or recommended, blue forced, red locked or blocked, and a legend
