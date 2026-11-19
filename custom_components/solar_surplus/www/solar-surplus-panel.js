@@ -294,6 +294,11 @@ function icon(name) {
   return svg;
 }
 
+// The engine keeps a shortfall as a negative surplus; the cards show none.
+function atLeastZero(watts) {
+  return watts === null || watts === undefined ? watts : Math.max(0, watts);
+}
+
 function formatPower(hass, watts) {
   if (watts === null || watts === undefined || Number.isNaN(watts)) return "–";
   const lang = language(hass);
@@ -1032,12 +1037,14 @@ class SolarSurplusPanel extends HTMLElement {
     const hass = this._hass;
     const decision = this._state.decision || {};
     const cards = h("div", { class: "cards" });
+    const surplus = atLeastZero(decision.surplus);
+    const surplusRaw = atLeastZero(decision.surplus_raw);
     cards.append(
       this._stat(
         t(hass, "card.surplus"),
-        formatPower(hass, decision.surplus),
-        decision.surplus_raw !== null && decision.surplus_raw !== undefined && decision.surplus_raw !== decision.surplus
-          ? t(hass, "card.surplus_raw", { value: formatPower(hass, decision.surplus_raw) })
+        formatPower(hass, surplus),
+        surplusRaw !== null && surplusRaw !== undefined && surplusRaw !== surplus
+          ? t(hass, "card.surplus_raw", { value: formatPower(hass, surplusRaw) })
           : ""
       )
     );
@@ -1069,7 +1076,7 @@ class SolarSurplusPanel extends HTMLElement {
       this._stat(
         t(hass, "card.allocated"),
         formatPower(hass, decision.allocated),
-        t(hass, "card.remaining", { value: formatPower(hass, decision.remaining) })
+        t(hass, "card.remaining", { value: formatPower(hass, atLeastZero(decision.remaining)) })
       )
     );
     return cards;
