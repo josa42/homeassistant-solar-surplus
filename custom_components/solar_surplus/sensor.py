@@ -1,4 +1,5 @@
-"""Sensors: the surplus, the forecast, each consumer's status and the signals."""
+"""Sensors: the surplus, the traffic light, the forecast, each consumer's status
+and the signals."""
 
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import AdapterType, ConsumerState, EnergySignal, SgState
+from .const import AdapterType, ConsumerState, EnergySignal, SgState, TrafficLight
 from .coordinator import (
     SG_STATE_NAMES,
     Consumer,
@@ -37,6 +38,7 @@ async def async_setup_entry(
     hub: list[SensorEntity] = [
         PowerSensor(coordinator, description) for description in POWER_SENSORS
     ]
+    hub.append(TrafficLightSensor(coordinator))
     if coordinator.forecast.configured:
         hub += [ForecastRemainingSensor(coordinator), ForecastPowerSensor(coordinator)]
     async_add_entities(hub)
@@ -79,6 +81,36 @@ class PowerSensor(HubEntity, SensorEntity):
         data = self.coordinator.data
         value = None if data is None else self._value(data)
         return None if value is None else round(value)
+
+
+class TrafficLightSensor(HubEntity, SensorEntity):
+    """Whether now is a good time to use power by hand, for a dashboard.
+
+    Without a grid reading it is unavailable rather than a guess.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [light.value for light in TrafficLight]
+
+    def __init__(self, coordinator: SolarSurplusCoordinator) -> None:
+        super().__init__(coordinator, "traffic_light")
+
+    @property
+    def available(self) -> bool:
+        data = self.coordinator.data
+        return super().available and data is not None and data.traffic_light is not None
+
+    @property
+    def native_value(self) -> str | None:
+        data = self.coordinator.data
+        return None if data is None or data.traffic_light is None else data.traffic_light.value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self.coordinator.data
+        if data is None or data.surplus is None:
+            return {}
+        return {"surplus": round(data.surplus)}
 
 
 class ForecastRemainingSensor(HubEntity, SensorEntity):

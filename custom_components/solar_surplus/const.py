@@ -46,6 +46,9 @@ CONF_BASE_LOAD: Final = "base_load"
 #: From this much drawn from the grid, with the battery empty, SG Ready heat
 #: pumps may be locked and signals say blocked.
 CONF_SIGNAL_BLOCKED: Final = "signal_blocked"
+#: From this much surplus the traffic light shows green: enough to switch on
+#: something sizeable by hand, such as a washing machine or a kettle.
+CONF_TRAFFIC_LIGHT_GREEN: Final = "traffic_light_green"
 #: Test mode: where to send what would have been switched. A `notify` action
 #: or entity; without one, a persistent notification.
 CONF_NOTIFY_TARGET: Final = "notify_target"
@@ -57,6 +60,7 @@ DEFAULT_BATTERY_MIN_SOC: Final = 20
 DEFAULT_RESERVE: Final = 100
 DEFAULT_BASE_LOAD: Final = 400
 DEFAULT_SIGNAL_BLOCKED: Final = 500
+DEFAULT_TRAFFIC_LIGHT_GREEN: Final = 1000
 
 ################################################################################
 # Consumer configuration
@@ -229,6 +233,17 @@ class EnergySignal(StrEnum):
     NORMAL = "normal"
     RECOMMENDED = "recommended"
     FORCED = "forced"
+
+
+class TrafficLight(StrEnum):
+    """Whether now is a good time to use power by hand, for a dashboard."""
+
+    #: Using more would come from the grid or the battery.
+    GRID = "grid"
+    #: Some solar power is spare, but not enough for anything big.
+    LOW = "low"
+    #: Enough is spare to switch on something sizeable.
+    PLENTY = "plenty"
 
 
 class DeferrablePhase(StrEnum):

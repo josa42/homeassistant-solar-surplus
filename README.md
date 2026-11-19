@@ -60,6 +60,7 @@ its kind. Chosen here, a sensor wins, and the sign options apply to it.
 | Battery maximum charge power | | Optional. Known, the part of it the battery does not use yet is held back for it while it is below *Battery first up to*. |
 | Battery capacity | | Optional, in kWh. Known, the [plan](#plan) follows the battery's charge through the forecast. |
 | Blocked from grid import of | 500 W | Drawing this much from the grid with the battery empty, or without one, locks SG Ready heat pumps and blocks signals, if they are allowed to be. |
+| Traffic light green from | 1000 W | From this much surplus the [traffic light](#traffic-light) shows `plenty`. |
 | Solar forecast | | Optional. One or more config entries that provide a solar forecast for the energy dashboard. Several are added up. |
 | Reserve | 100 W | Held back from the surplus. It is also the hysteresis: a consumer switches on only if this much is still exported afterwards, and off once the house draws from the grid. |
 | Base load | 400 W | What the house draws on its own. The expected surplus of an hour is its forecast minus this and the reserve. With grid and solar in the energy dashboard, it is [learned](#learned-base-load) for each hour of the day, and this counts only for hours without enough history. |
@@ -136,6 +137,7 @@ The hub's device:
 | `sensor.solar_surplus_surplus` | The surplus that is handed out, after smoothing and the reserve |
 | `sensor.solar_surplus_allocated_power` | What the consumers take of it |
 | `sensor.solar_surplus_remaining_surplus` | What is left after them |
+| `sensor.solar_surplus_traffic_light` | Whether now is a good time to use power by hand: `grid`, `low` or `plenty`. See [Traffic light](#traffic-light). |
 | `sensor.solar_surplus_forecast_remaining_today` | The solar energy still expected today (only with a forecast) |
 | `sensor.solar_surplus_forecast_power` | The solar power the forecast expects right now (only with a forecast) |
 | `switch.solar_surplus_control` | Off, every decision is still made and shown, but nothing is switched. It keeps its state across a restart. |
@@ -148,6 +150,26 @@ Each consumer gets a device of its own:
 | `sensor.<consumer>_status` | `off`, `on`, `locked`, `waiting`, `running`, `done`, `idle` (not ready) or `unavailable`. The `reason` attribute says why, the others give the figures behind it: the power `needed`, the surplus `available` at its place in the order, `until` when a delay or minimum time runs out, and for a deferrable consumer its `deadline`, `latest_start` and `expected_start`. With a forecast, `expected_on` and `expected_off` say when it is next expected to run, and a deferrable consumer's `recommended_start` and `solar_share` when its run gets the most solar power, and how much of it. |
 | `select.<consumer>_mode` | `auto` lets the allocation decide, `on` and `off` put a hand on it. |
 | `sensor.<consumer>_energy_signal` | Only for a signal: what it tells, see below. |
+
+### Traffic light
+
+`sensor.solar_surplus_traffic_light` is for a dashboard: it tells whether now
+is a good time to switch something on by hand, such as the washing machine.
+
+| State | Light | When |
+| --- | --- | --- |
+| `plenty` | green | The surplus is at least *Traffic light green from* (1000 W). |
+| `low` | yellow | Some surplus, but less than that: enough for something small. |
+| `grid` | red | No surplus: using more would come from the grid or the battery. |
+
+It goes by the surplus before the consumers, not by what they leave. A
+variable consumer such as a wallbox takes whatever is left, so that would
+hardly ever be green, while a kettle switched on now only takes from the
+wallbox and still runs on the sun. What the battery feeds the house is not
+surplus, and below *Battery first up to* neither is what it charges with, as
+for the consumers. The surplus is slow to rise and quick to fall, so a gap in
+the clouds does not turn it green. The `surplus` attribute has the figure.
+Without a grid reading it is `unavailable`.
 
 ### Signals
 

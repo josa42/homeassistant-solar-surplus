@@ -37,12 +37,14 @@ from .const import (
     CONF_POWER_SENSOR,
     CONF_RESERVE,
     CONF_SIGNAL_BLOCKED,
+    CONF_TRAFFIC_LIGHT_GREEN,
     DEFAULT_BASE_LOAD,
     DEFAULT_BATTERY_DISCHARGE_POSITIVE,
     DEFAULT_BATTERY_MIN_SOC,
     DEFAULT_BATTERY_TARGET_SOC,
     DEFAULT_RESERVE,
     DEFAULT_SIGNAL_BLOCKED,
+    DEFAULT_TRAFFIC_LIGHT_GREEN,
     DOMAIN,
     REFRESH_COOLDOWN,
     SUBENTRY_TYPE_CONSUMER,
@@ -111,6 +113,9 @@ def hub_settings(values: Mapping[str, Any]) -> HubSettings:
         reserve=float(values.get(CONF_RESERVE, DEFAULT_RESERVE)),
         base_load=float(values.get(CONF_BASE_LOAD, DEFAULT_BASE_LOAD)),
         signal_blocked=float(values.get(CONF_SIGNAL_BLOCKED, DEFAULT_SIGNAL_BLOCKED)),
+        traffic_light_green=float(
+            values.get(CONF_TRAFFIC_LIGHT_GREEN, DEFAULT_TRAFFIC_LIGHT_GREEN)
+        ),
     )
 
 

@@ -42,6 +42,10 @@ async def test_the_hub_shows_the_surplus(
         ]
         == "W"
     )
+    light = hass.states.get("sensor.solar_surplus_traffic_light")
+    assert light.state == "plenty"
+    assert light.attributes["options"] == ["grid", "low", "plenty"]
+    assert light.attributes["surplus"] == 1400
     assert hass.states.get("sensor.solar_surplus_forecast_power") is None, (
         "only with a forecast"
     )
@@ -96,6 +100,7 @@ async def test_without_a_grid_reading_the_signal_is_unavailable(
     await coordinator.async_refresh()
     await hass.async_block_till_done()
     assert hass.states.get(SIGNAL).state == "unavailable"
+    assert hass.states.get("sensor.solar_surplus_traffic_light").state == "unavailable"
 
 
 async def test_each_consumer_says_what_it_does_and_why(

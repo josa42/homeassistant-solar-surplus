@@ -58,6 +58,7 @@ from .const import (
     CONF_START_ENTITY,
     CONF_STATE_ENTITY,
     CONF_SWITCH_ENTITY,
+    CONF_TRAFFIC_LIGHT_GREEN,
     CONF_TURN_OFF_WHEN_DONE,
     CONF_WAIT_FOR_BEST,
     CONF_WATTS_PER_UNIT,
@@ -76,6 +77,7 @@ from .const import (
     DEFAULT_RESERVE,
     DEFAULT_RUN_TIME,
     DEFAULT_SIGNAL_BLOCKED,
+    DEFAULT_TRAFFIC_LIGHT_GREEN,
     DEFAULT_WATTS_PER_UNIT,
     DOMAIN,
     SUBENTRY_TYPE_CONSUMER,
@@ -96,6 +98,7 @@ HUB_KEYS = (
     CONF_BATTERY_MAX_CHARGE,
     CONF_BATTERY_CAPACITY,
     CONF_SIGNAL_BLOCKED,
+    CONF_TRAFFIC_LIGHT_GREEN,
     CONF_FORECAST_ENTRIES,
     CONF_RESERVE,
     CONF_BASE_LOAD,
@@ -202,6 +205,9 @@ def hub_schema(
         _suggest(CONF_BATTERY_MAX_CHARGE, values): _watts(),
         _suggest(CONF_BATTERY_CAPACITY, values): _number("kWh", 1000, 0.1),
         _default(CONF_SIGNAL_BLOCKED, values, DEFAULT_SIGNAL_BLOCKED): _watts(),
+        _default(
+            CONF_TRAFFIC_LIGHT_GREEN, values, DEFAULT_TRAFFIC_LIGHT_GREEN
+        ): _watts(),
     }
     if forecast_options:
         fields[_suggest(CONF_FORECAST_ENTRIES, values)] = selector.SelectSelector(

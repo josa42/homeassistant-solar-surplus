@@ -15,6 +15,7 @@
           "battery_max_charge_power": "Maximale Ladeleistung der Batterie",
           "battery_capacity": "Kapazität der Batterie",
           "signal_blocked": "Gesperrt ab Netzbezug von",
+          "traffic_light_green": "Ampel grün ab",
           "forecast_entries": "Solarprognose",
           "reserve": "Reserve",
           "base_load": "Grundlast"
@@ -30,6 +31,7 @@
           "battery_max_charge_power": "Optional. Ist sie bekannt, wird der Teil, den die Batterie noch nicht nutzt, für sie zurückgehalten, solange sie unter dem Ladestand oben ist.",
           "battery_capacity": "Optional; leer gelassen, wird die des Energie-Dashboards verwendet. Ist sie bekannt, verfolgt der Plan den Ladestand der Batterie durch die Prognose, und das Panel zeigt ihn.",
           "signal_blocked": "Bei leerer oder ohne Batterie sperrt so viel Netzbezug SG-Ready-Wärmepumpen und Signale.",
+          "traffic_light_green": "Ab so viel Überschuss zeigt der Ampel-Sensor grün: genug, um etwas Größeres von Hand einzuschalten. Darunter und über null ist er gelb, unter null rot.",
           "forecast_entries": "Optional; leer gelassen, wird die Solarprognose des Energie-Dashboards verwendet. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
           "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
           "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert. Mit Netz und Solar im Energie-Dashboard wird sie für jede Stunde des Tages gelernt, und dieser Wert gilt nur für Stunden ohne genug Verlauf."
@@ -65,6 +67,7 @@
           "battery_max_charge_power": "Maximale Ladeleistung der Batterie",
           "battery_capacity": "Kapazität der Batterie",
           "signal_blocked": "Gesperrt ab Netzbezug von",
+          "traffic_light_green": "Ampel grün ab",
           "forecast_entries": "Solarprognose",
           "reserve": "Reserve",
           "base_load": "Grundlast"
@@ -80,6 +83,7 @@
           "battery_max_charge_power": "Optional. Ist sie bekannt, wird der Teil, den die Batterie noch nicht nutzt, für sie zurückgehalten, solange sie unter dem Ladestand oben ist.",
           "battery_capacity": "Optional; leer gelassen, wird die des Energie-Dashboards verwendet. Ist sie bekannt, verfolgt der Plan den Ladestand der Batterie durch die Prognose, und das Panel zeigt ihn.",
           "signal_blocked": "Bei leerer oder ohne Batterie sperrt so viel Netzbezug SG-Ready-Wärmepumpen und Signale.",
+          "traffic_light_green": "Ab so viel Überschuss zeigt der Ampel-Sensor grün: genug, um etwas Größeres von Hand einzuschalten. Darunter und über null ist er gelb, unter null rot.",
           "forecast_entries": "Optional; leer gelassen, wird die Solarprognose des Energie-Dashboards verwendet. Forecast.Solar, Solcast oder jede andere Integration, die eine Solarprognose für das Energie-Dashboard liefert. Mehrere werden addiert.",
           "reserve": "Wird vom Überschuss zurückgehalten. Ein Verbraucher schaltet nur ein, wenn danach noch so viel eingespeist wird, und aus, sobald das Haus aus dem Netz bezieht.",
           "base_load": "Was das Haus von sich aus verbraucht, um die Prognose zu lesen: der erwartete Überschuss einer Stunde ist ihre Prognose minus dieser Wert. Mit Netz und Solar im Energie-Dashboard wird sie für jede Stunde des Tages gelernt, und dieser Wert gilt nur für Stunden ohne genug Verlauf."
@@ -295,6 +299,14 @@
       },
       "remaining_power": {
         "name": "Verbleibender Überschuss"
+      },
+      "traffic_light": {
+        "name": "Ampel",
+        "state": {
+          "grid": "Netzbezug",
+          "low": "Wenig Sonne",
+          "plenty": "Genug Sonne"
+        }
       },
       "forecast_remaining_today": {
         "name": "Prognose Rest heute"

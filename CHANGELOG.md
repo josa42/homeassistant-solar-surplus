@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- **A traffic light for the dashboard says whether now is a good time to use
+  power.** `sensor.solar_surplus_traffic_light` is `plenty` from *Traffic light
+  green from* (1000 W) of surplus, `low` below that, and `grid` once more
+  would come from the grid or the battery. It goes by the surplus before the
+  consumers, since a variable consumer gives way to a kettle switched on by
+  hand.
+
 ### Fixed
 
 - A forecast that leaves the night out, as Forecast.Solar does, is filled in

@@ -24,6 +24,7 @@ from custom_components.solar_surplus.const import (
     EnergySignal,
     Override,
     Reason,
+    TrafficLight,
 )
 
 BASE = Path("custom_components/solar_surplus")
@@ -105,6 +106,8 @@ def test_every_state_and_reason_can_be_shown(language: str) -> None:
     }
     signal = data["sensor"]["energy_signal"]
     assert set(signal["state"]) == {state.value for state in EnergySignal}
+    light = data["sensor"]["traffic_light"]
+    assert set(light["state"]) == {state.value for state in TrafficLight}
     assert set(data["select"]["override"]["state"]) == {
         override.value for override in Override
     }

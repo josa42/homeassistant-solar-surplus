@@ -34,6 +34,7 @@ from .const import (
     Override,
     Reason,
     SgState,
+    TrafficLight,
 )
 from .models import (
     ConsumerDecision,
@@ -43,6 +44,7 @@ from .models import (
     Decision,
     EngineMemory,
     HubMemory,
+    HubSettings,
     Inputs,
 )
 from .plan import make_plan
@@ -107,7 +109,24 @@ def decide(
         forecast=inputs.forecast,
         plan=plan,
         soc_forecast=soc_forecast,
+        traffic_light=traffic_light(smoothed, inputs.settings),
     )
+
+
+def traffic_light(surplus: float, settings: HubSettings) -> TrafficLight:
+    """Whether now is a good time to use power by hand.
+
+    It goes by the surplus before the consumers, not by what they leave: a
+    variable consumer takes whatever is left, so that would hardly ever be
+    green, while a kettle switched on only takes from it and still runs on
+    the sun. The smoothing of the surplus keeps a passing cloud from turning it
+    green.
+    """
+    if surplus < 0:
+        return TrafficLight.GRID
+    if surplus < settings.traffic_light_green:
+        return TrafficLight.LOW
+    return TrafficLight.PLENTY
 
 
 def _ordered(order: list[str], by_id: dict[str, ConsumerInput]) -> list[str]:

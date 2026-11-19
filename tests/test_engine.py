@@ -12,6 +12,7 @@ from custom_components.solar_surplus.const import (
     Override,
     Reason,
     SgState,
+    TrafficLight,
 )
 from custom_components.solar_surplus.engine import next_occurrence
 from custom_components.solar_surplus.models import ConsumerMemory, HubSettings
@@ -713,6 +714,58 @@ def test_without_a_grid_reading_nothing_is_decided() -> None:
 
 
 ################################################################################
+# Traffic light
+################################################################################
+
+
+def test_the_traffic_light_follows_the_surplus() -> None:
+    house = House(settings=HubSettings(reserve=0, traffic_light_green=1000))
+    assert house.run(-200).traffic_light is TrafficLight.GRID
+    assert house.run(0).traffic_light is TrafficLight.LOW
+    assert house.run(999).traffic_light is TrafficLight.LOW
+    assert house.run(1000).traffic_light is TrafficLight.PLENTY
+
+
+def test_the_traffic_light_is_green_while_a_consumer_takes_the_surplus() -> None:
+    house = House(spec("rod", 2000))
+    decision = house.run(2500)
+    assert decision.remaining == 500
+    assert decision.traffic_light is TrafficLight.PLENTY, (
+        "a kettle switched on now only takes from the rod"
+    )
+
+
+def test_the_traffic_light_is_red_while_the_battery_feeds_the_house() -> None:
+    house = House()
+    decision = house.run(0, grid=0, battery=-800, soc=95)
+    assert decision.traffic_light is TrafficLight.GRID
+
+
+def test_the_traffic_light_waits_for_the_battery_below_its_target() -> None:
+    house = House(settings=HubSettings(reserve=0, battery_max_charge=3000))
+    decision = house.run(0, battery=1500, soc=50)
+    assert decision.traffic_light is TrafficLight.GRID, (
+        "what the battery could still charge with is held back for it"
+    )
+
+
+def test_the_traffic_light_turns_green_slowly() -> None:
+    house = House()
+    house.smoothing = True
+    assert house.run(0).traffic_light is TrafficLight.LOW
+    assert house.run(3000, after=SECONDS).traffic_light is TrafficLight.LOW, (
+        "a gap in the clouds"
+    )
+    assert house.run(-100, after=SECONDS).traffic_light is TrafficLight.GRID, (
+        "a fall is taken at once"
+    )
+
+
+def test_without_a_grid_reading_there_is_no_traffic_light() -> None:
+    assert House().run(1000, grid=None).traffic_light is None
+
+
+################################################################################
 # Order and memory
 ################################################################################
 
@@ -758,6 +811,7 @@ def test_a_decision_can_be_sent_as_json() -> None:
     assert data["consumers"][0]["state"] == "on"
     assert data["consumers"][1]["details"]["started_at"] == T0.isoformat()
     assert data["forecast"][1]["watts"] == 2000
+    assert data["traffic_light"] == "plenty"
 
 
 def test_the_next_time_of_day() -> None:

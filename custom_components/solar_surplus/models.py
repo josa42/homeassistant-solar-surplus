@@ -19,6 +19,7 @@ from .const import (
     Override,
     Reason,
     SgState,
+    TrafficLight,
 )
 
 
@@ -34,6 +35,7 @@ class HubSettings:
     reserve: float = 100
     base_load: float = 400
     signal_blocked: float = 500
+    traffic_light_green: float = 1000
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,6 +278,9 @@ class Decision:
     #: The battery's expected charge at the end of each forecast period ahead,
     #: starting with what it holds now.
     soc_forecast: list[tuple[datetime, float]] = field(default_factory=list)
+    #: Whether now is a good time to use power by hand; None without a grid
+    #: reading.
+    traffic_light: TrafficLight | None = None
 
     def consumer(self, consumer_id: str) -> ConsumerDecision | None:
         """The decision for one consumer, if it is part of this run."""
@@ -293,6 +298,7 @@ class Decision:
             "surplus": _round(self.surplus),
             "allocated": _round(self.allocated),
             "remaining": _round(self.remaining),
+            "traffic_light": self.traffic_light and self.traffic_light.value,
             "consumers": [consumer.to_dict() for consumer in self.consumers],
             "order": list(self.order),
             "plan": {key: plan.to_dict() for key, plan in self.plan.items()},
