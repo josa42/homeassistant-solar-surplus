@@ -1,7 +1,7 @@
 // The traffic light as a dashboard card and a badge. Plain JS, no build step.
 // PANEL_VERSION is the version of the integration's frontend; the release
 // workflow bumps it here, in the panel and in const.py together.
-const PANEL_VERSION = "0.3.0";
+const PANEL_VERSION = "0.4.0";
 
 const DOMAIN = "solar_surplus";
 const CARD = "solar-surplus-traffic-light-card";
