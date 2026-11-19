@@ -233,6 +233,12 @@ def _deferrable(
         solar = _solar_share(periods, budgets, spec.power, start, spec.run_time)
         if solar > share + 1e-9:
             best, share = start, solar
+    if share <= 0 and consumer.override is not Override.ON:
+        # No start brings solar, so the engine waits for the deadline, or
+        # without one for a surplus the forecast does not see.
+        if latest is None:
+            return ConsumerPlan(id=spec.id)
+        best = latest
     end = best + spec.run_time
     _book(periods, budgets, spec.power, best, end)
     plan = _plan(spec.id, [PlanWindow(best, end)])

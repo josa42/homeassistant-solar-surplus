@@ -105,6 +105,25 @@ def test_without_any_solar_there_is_no_recommended_start() -> None:
     assert plan.solar_share == 0
 
 
+def test_without_any_solar_a_deferrable_is_planned_at_its_latest_start() -> None:
+    house = ready(House(washer(), settings=PLAIN))
+    plan = house.run(0, forecast=forecast(*[0] * 9)).plan["washer"]
+    assert windows(plan) == [(6, 8, None)], "the engine waits for the deadline"
+
+
+def test_without_any_solar_or_a_deadline_a_deferrable_is_not_planned() -> None:
+    house = House(washer(), settings=PLAIN)
+    house.set("washer", ready=True, deadline=None, active=False)
+    assert house.run(0, forecast=forecast(0, 0, 0)).plan["washer"].windows == []
+
+
+def test_a_deferrable_on_by_hand_is_planned_at_once_without_solar() -> None:
+    house = ready(House(washer(), settings=PLAIN))
+    house.overrides["washer"] = Override.ON
+    plan = house.run(0, forecast=forecast(0, 0, 0)).plan["washer"]
+    assert windows(plan) == [(0, 2, None)]
+
+
 def test_a_deferrable_that_is_not_ready_is_not_planned() -> None:
     house = House(washer(), settings=PLAIN)
     assert house.run(0, forecast=forecast(5000)).plan["washer"].windows == []
