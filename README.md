@@ -25,14 +25,8 @@ and can always tell you why a consumer is on or off.
   [Solcast](https://github.com/BJReplay/ha-solcast-solar) or any other
   integration that feeds the forecast of the energy dashboard
 
-### HACS by hand
-
-The button above does this for you. Without it:
-
-1. Open HACS, then **Custom repositories** in the menu
-2. Add `https://github.com/josa42/homeassistant-solar-surplus` as an
-   **Integration**
-3. Install **Solar Surplus** and restart Home Assistant
+[Manual installation](docs/manual_installation.md) covers adding the repository
+by hand and installing without HACS.
 
 <br><br>
 
