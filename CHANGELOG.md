@@ -23,6 +23,11 @@
 - The panel's forecast runs from midnight to midnight also where the forecast
   leaves the night out, and the line of the current time passes behind the
   axis labels and the consumers' names instead of over them.
+- A deferrable consumer that no start brings solar power is planned at its
+  latest start, when the engine starts it, instead of from now on. Without a
+  deadline it is not planned at all.
+- The panel shows no negative surplus or remaining power: a shortfall shows as
+  0 W.
 
 ## 0.3.0 - 2026-11-18
 
