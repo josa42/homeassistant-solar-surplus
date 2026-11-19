@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from homeassistant.components import frontend, panel_custom
+from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -13,6 +14,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from . import websocket_api
 from .const import (
+    CARDS_ASSET_URL,
     DOMAIN,
     PANEL_ASSET_URL,
     PANEL_COMPONENT_NAME,
@@ -34,14 +36,26 @@ DASHBOARD_LISTENER = f"{DOMAIN}_energy_dashboard_listener"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Register the websocket API and serve the panel. Once per session."""
+    """Register the websocket API, serve the panel and load the cards.
+
+    Once per session.
+    """
     websocket_api.async_register(hass)
     if hass.http is None:
         return True
-    asset = Path(__file__).parent / "www" / "solar-surplus-panel.js"
+    www = Path(__file__).parent / "www"
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(PANEL_ASSET_URL, str(asset), cache_headers=False)]
+        [
+            StaticPathConfig(
+                PANEL_ASSET_URL, str(www / "solar-surplus-panel.js"), cache_headers=False
+            ),
+            StaticPathConfig(
+                CARDS_ASSET_URL, str(www / "solar-surplus-cards.js"), cache_headers=False
+            ),
+        ]
     )
+    # The version is the cache-buster, as for the panel.
+    add_extra_js_url(hass, f"{CARDS_ASSET_URL}?v={PANEL_VERSION}")
     return True
 
 

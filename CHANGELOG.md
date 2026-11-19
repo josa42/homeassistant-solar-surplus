@@ -10,6 +10,10 @@
   would come from the grid or the battery. It goes by the surplus before the
   consumers, since a variable consumer gives way to a kettle switched on by
   hand.
+- **A card and a badge show the traffic light on a dashboard.** The card is a
+  tile with the state in the light's colour and the surplus beneath it, the
+  badge a small pill with both. They are loaded on every dashboard, with no
+  resource to add.
 
 ### Fixed
 

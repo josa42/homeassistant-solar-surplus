@@ -169,7 +169,8 @@ wallbox and still runs on the sun. What the battery feeds the house is not
 surplus, and below *Battery first up to* neither is what it charges with, as
 for the consumers. The surplus is slow to rise and quick to fall, so a gap in
 the clouds does not turn it green. The `surplus` attribute has the figure.
-Without a grid reading it is `unavailable`.
+Without a grid reading it is `unavailable`. The [card and badge](#card-and-badge)
+show it on a dashboard.
 
 ### Signals
 
@@ -269,6 +270,28 @@ exist, they show up as persistent notifications in the sidebar.
 With control off, test mode sends nothing: nothing would be switched. When test
 mode is turned off, the real house is read again, and the consumers start their
 minimum times afresh.
+
+<br><br>
+
+## Card and badge
+
+The traffic light comes with a card and a badge, loaded on every dashboard with
+nothing to add as a resource. Both show the state in the light's colour with
+the surplus next to it, and open the sensor's details on a tap.
+
+```yaml
+type: custom:solar-surplus-traffic-light-card
+entity: sensor.solar_surplus_traffic_light
+```
+
+```yaml
+badges:
+  - type: custom:solar-surplus-traffic-light-badge
+    entity: sensor.solar_surplus_traffic_light
+```
+
+The card is a tile, one row high, and can also be added from the card picker.
+The colours follow the theme's error, warning and success colours.
 
 <br><br>
 

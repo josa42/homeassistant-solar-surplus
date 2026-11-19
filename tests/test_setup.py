@@ -5,13 +5,18 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 from homeassistant.components import frontend
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.solar_surplus.const import PANEL_URL_PATH, PANEL_VERSION
+from custom_components.solar_surplus.const import (
+    CARDS_ASSET_URL,
+    PANEL_URL_PATH,
+    PANEL_VERSION,
+)
 
-PANEL_JS = Path("custom_components/solar_surplus/www/solar-surplus-panel.js")
+WWW = Path("custom_components/solar_surplus/www")
 
 
 async def test_setup_adds_the_panel(
@@ -51,8 +56,24 @@ async def test_the_panel_is_served(
     assert "solar-surplus-panel" in await response.text()
 
 
-def test_the_panel_and_the_integration_agree_on_the_version() -> None:
+async def test_the_cards_are_loaded_on_every_dashboard(
+    hass: HomeAssistant, setup_entry, entry: MockConfigEntry, hass_client
+) -> None:
+    await setup_entry(entry)
+    urls = hass.data[frontend.DATA_EXTRA_MODULE_URL].urls
+    assert f"{CARDS_ASSET_URL}?v={PANEL_VERSION}" in urls
+
+    client = await hass_client()
+    response = await client.get(CARDS_ASSET_URL)
+    assert response.status == 200
+    body = await response.text()
+    assert "solar-surplus-traffic-light-card" in body
+    assert "solar-surplus-traffic-light-badge" in body
+
+
+@pytest.mark.parametrize("name", ["solar-surplus-panel.js", "solar-surplus-cards.js"])
+def test_the_frontend_and_the_integration_agree_on_the_version(name: str) -> None:
     match = re.search(
-        r'const PANEL_VERSION = "([^"]+)"', PANEL_JS.read_text(encoding="utf-8")
+        r'const PANEL_VERSION = "([^"]+)"', (WWW / name).read_text(encoding="utf-8")
     )
     assert match and match.group(1) == PANEL_VERSION

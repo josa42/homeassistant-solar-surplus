@@ -25,3 +25,4 @@ jobs:
       version_files: |
         custom_components/solar_surplus/const.py: PANEL_VERSION: Final = "{version}"
         custom_components/solar_surplus/www/solar-surplus-panel.js: const PANEL_VERSION = "{version}"
+        custom_components/solar_surplus/www/solar-surplus-cards.js: const PANEL_VERSION = "{version}"

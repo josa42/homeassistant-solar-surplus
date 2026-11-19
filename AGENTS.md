@@ -156,6 +156,11 @@ If creating PRs:
   Bump `PANEL_VERSION` in `const.py` and in the JS together, it is the
   cache-buster. Custom translation keys never reach `hass.localize`, so the
   panel carries its own `STRINGS` table; update `de` along with `en`.
+- The traffic light's card and badge (`www/solar-surplus-cards.js`) are plain
+  JS too, loaded on every dashboard through `add_extra_js_url`. They carry the
+  same `PANEL_VERSION`, which the release workflow bumps in all three files.
+  States come from `hass.formatEntityState`; their own few words sit in a
+  `STRINGS` table with `de` along with `en`.
 - `strings.json` and `translations/en.json` must stay identical, and `de.json`
   must have the same keys. `tests/test_translations.py` checks both.
 - To check the panel without a browser session, load it on a bare page with a

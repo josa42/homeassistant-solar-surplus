@@ -148,6 +148,8 @@ PANEL_URL_PATH: Final = "solar-surplus"
 PANEL_ASSET_URL: Final = "/solar_surplus/solar-surplus-panel.js"
 PANEL_COMPONENT_NAME: Final = "solar-surplus-panel"
 PANEL_VERSION: Final = "0.3.0"
+#: The traffic light's card and badge, loaded on every dashboard.
+CARDS_ASSET_URL: Final = "/solar_surplus/solar-surplus-cards.js"
 PANEL_ICON: Final = "mdi:solar-power-variant"
 PANEL_TITLE: Final[dict[str, str]] = {"en": "Solar Surplus", "de": "Solarüberschuss"}
 
